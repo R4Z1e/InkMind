@@ -31,6 +31,7 @@ no Claude (versão artefato) ou no Firebase (versão do site, pelo `inkmind-fb.j
 | `js/20-painel-mover.js` | Painel de status retrátil e ferramenta Mover do editor de mapa |
 | `js/21-coautoria.js` | Escrita a várias mãos e leitores beta; levar projetos do Claude para o site |
 | `js/22-economia.js` | Economia de leituras e gravações (plano grátis do Firebase) |
+| `js/23-celular-dados.js` | Rolador de dados do editor com dados animados; escolhas deslizantes no celular |
 | `js/99-inicio.js` | Inicialização (sempre por último) |
 | `fb/src/` | Conexão com o Firebase (`shim.js`), Firebase falso para testes (`mockfb.js`) |
 | `firestore.rules` | Regras de segurança do banco |
@@ -50,7 +51,7 @@ no Claude (versão artefato) ou no Firebase (versão do site, pelo `inkmind-fb.j
 
 Rodam sozinhos no GitHub (aba **Actions → Testes do app**) a cada envio. Cada cenário abre o app num navegador
 de verdade e confere o resultado: modo local, conta na nuvem, economia de gravações, mesa com visitante, combate,
-segredos do mapa, coautoria, moderação e exclusão de conta, levar projetos do Claude para o site.
+segredos do mapa, coautoria, moderação e exclusão de conta, levar projetos do Claude para o site, celular (janela cabe na tela, dados animados).
 
 No computador: veja as instruções no topo de `tests/run.py`.
 

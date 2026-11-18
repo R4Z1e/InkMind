@@ -952,3 +952,18 @@ kbd{font:600 10.5px var(--ui,system-ui);border:1px solid var(--line);border-bott
 /* v28 — consumo */
 .use-box{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:12px;background:var(--panel2);font-size:13px}
 .use-row{display:flex;gap:16px;flex-wrap:wrap;margin-top:6px}.use-row small{color:var(--muted)}
+/* v29 — escolhas deslizantes no celular; dado rolando no editor */
+.typepick{grid-template-columns:repeat(2,minmax(0,1fr))}
+.typepick label{min-width:0}
+.dlg-b{overflow-x:hidden}
+.tp-hint{display:none}
+@media (max-width:860px){
+ .typepick{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;gap:10px;padding:2px 2px 8px;margin:0 -2px;overscroll-behavior-x:contain}
+ .typepick label{flex:0 0 82%;scroll-snap-align:start}
+ .tp-hint{display:block;text-align:center;font-size:12px;color:var(--muted);margin:2px 0 8px}
+ .dlg-b .row.wrap>.grow{min-width:min(100%,200px)}
+}
+#dice .res.rolling{animation:dRoll .5s linear infinite;display:block}
+@keyframes dRoll{to{transform:rotate(360deg)}}
+.ov{grid-template-columns:minmax(0,1fr)}
+.dlg{max-width:100%}

@@ -225,9 +225,21 @@ async def t_levar_para_o_site(b):
     check('Meu Romance' in await s.evaluate('S.projects.map(p=>p.title)'), 'o site recebeu e importou o projeto')
     c.no_errors()
 
+async def t_celular(b):
+  async with Ctx(b) as c:
+    m = await c.user('mestre', vp={'width': 390, 'height': 844}); await new_project(m, 'rpg', 'Celular')
+    await m.evaluate('ACT.dice()'); await m.wait_for_selector('#dice.open'); await m.click('#dice [data-roll="1d20"]'); await m.wait_for_timeout(800)
+    check(await m.evaluate("!!document.querySelector('canvas.fx-over')"), 'rolador do editor mostra os dados animados')
+    await m.wait_for_timeout(3200); check(await m.evaluate("/^\\d+$/.test($('#dice .res').textContent)"), 'resultado aparece depois da animação')
+    await m.evaluate('ACT.dice()'); await m.click('[data-act=openTableP]'); await m.wait_for_selector('.tpltabs', timeout=15000); await m.wait_for_timeout(800)
+    await m.click('[data-act=tTab][data-t=maps]'); await m.wait_for_timeout(500); await m.click('[data-act=mNew]'); await m.wait_for_selector('.stylecv'); await m.wait_for_timeout(400)
+    w = await m.evaluate("[$('.dlg').getBoundingClientRect().width,innerWidth,$('.dlg .typepick').scrollWidth>$('.dlg .typepick').clientWidth]")
+    check(w[0] <= w[1] and w[2], 'no celular a janela cabe na tela e os estilos deslizam para o lado')
+    c.no_errors()
+
 TESTS = [('modo_local', t_modo_local), ('conta_nuvem', t_conta_nuvem), ('economia', t_economia), ('mesa_visitante', t_mesa_visitante),
          ('combate', t_combate), ('mapa_secreto', t_mapa_secreto), ('coautoria', t_coautoria), ('moderacao_conta', t_moderacao_conta),
-         ('levar_para_o_site', t_levar_para_o_site)]
+         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular)]
 
 async def main():
   only = sys.argv[1:]; fails = []
