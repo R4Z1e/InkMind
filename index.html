@@ -1329,7 +1329,7 @@ async function openProject(id){
    <input class="ptitle" id="ptitle" value="${esc(S.P.title)}" aria-label="Título do projeto">
    <button class="ik-rs hide-m" data-act="cmdk" title="Buscar ferramenta (Ctrl+K)">${I('search')}<span>Buscar</span><kbd>Ctrl K</kbd></button>
    <nav id="tabs">${railNav()}</nav>
-   <div class="rfoot"><span class="status" id="status"></span><button class="ik-th" data-act="themeQuick" title="Tema do app (claro/escuro)">${I('brush')}</button></div>
+   <div class="rfoot"><span class="status" id="status"></span><button class="ik-th" data-act="themeQuick" title="Tema do app (claro/escuro)">${I('brush')}</button>${FBAVAIL()&&window.INK&&INK.user?`<button class="ik-th" data-act="inkLogout" title="Sair da conta">${I('logout')}</button>`:''}</div>
   </aside><div id="view"></div></div>
   ${S.P.type==='rpg'?`<button id="dice-fab" data-act="dice" title="Rolar dados">🎲</button><div id="dice"></div>`:''}`;
  setStatus('ok');
@@ -2990,7 +2990,7 @@ ACT.account=async()=>{const p=prof(),o={emoji:p.emoji,color:p.color};
   <h3 style="margin:18px 0 4px;font:600 16px var(--disp)">🔒 Senha do aplicativo</h3><p class="small muted" style="margin:0 0 8px">${S.prefs.lock?'Ativa: o app pede a senha sempre que é aberto numa nova aba ou aparelho.':'Desativada. Com senha, o app pede a senha ao ser aberto — útil em aparelhos compartilhados.'}</p>
   <div class="row wrap"><button class="btn" data-v="pw">${S.prefs.lock?'Trocar senha':'Criar senha'}</button>${S.prefs.lock?'<button class="btn ghost danger" data-v="rmpw">Remover senha</button><button class="btn ghost" data-v="lock">Bloquear agora</button>':''}</div>`,
   onMount:(ov,close)=>{bindTokenPicker(ov,o);$$('[data-v]',ov).forEach(b=>b.onclick=()=>{ov._save();close(b.dataset.v)});ov._save=()=>{p.nick=$('#acN',ov).value.trim();p.bio=$('#acB',ov).value.trim();p.emoji=o.emoji;p.color=o.color;savePrefs()}},
-  actions:[{label:'Fechar'},{label:'Salvar',cls:'primary',onClick:ov=>{ov._save();toast('Conta atualizada');return 'ok'}}]});
+  actions:[...(FBAVAIL()&&window.INK&&INK.user?[{label:'⎋ Sair da conta',cls:'ghost',onClick:()=>{setTimeout(()=>ACT.inkLogout(),60);return 'logout'}}]:[]),{label:'Fechar'},{label:'Salvar',cls:'primary',onClick:ov=>{ov._save();toast('Conta atualizada');return 'ok'}}]});
  if(v==='pw')return setPassword();
  if(v==='rmpw'){if(await confirmDlg('Remover a senha do aplicativo?','Remover')){S.prefs.lock=null;savePrefs();toast('Senha removida')}}
  if(v==='lock'){markUnlocked(false);closeTable();renderLock();return}
@@ -4864,6 +4864,7 @@ ACT.moreM=async()=>{const p=P(),mm=mobileMain(p),rpg=p.type==='rpg';
  its.push({i:I('brush'),t:'Tema do app',d:'Claro, escuro e cor de destaque',run:()=>ACT.themeQuick(fakeEl())});
  its.push({i:I('pen'),t:'Renomear projeto',d:p.title,run:async()=>{const t=await ask('Renomear projeto','Título',p.title);if(!t)return;p.title=t;const pt=$('#ptitle');if(pt)pt.value=t;saveProject();toast('Projeto renomeado')}});
  its.push({i:I('back'),t:'Voltar à Estante',run:()=>ACT.home()});
+ if(FBAVAIL()&&window.INK&&INK.user)its.push({i:I('logout'),t:'Sair da conta',d:(INK.user.email||'Visitante'),run:()=>ACT.inkLogout()});
  ikMenu(null,its,{title:'Mais',sheet:true});
 };
 
@@ -5329,7 +5330,7 @@ const _gather16=gather;gather=async function(){const chs=await _gather16();const
 
 /* ============ v18: Firebase — entrar/sair e aviso na Estante ============ */
 ACT.inkLogin=()=>{if(window.INK)INK.login();else location.reload()};
-ACT.inkLogout=async()=>{if(!FBM())return;if(await confirmDlg('Sair da sua conta neste aparelho? Seus projetos continuam salvos na nuvem.','Sair'))INK.logout()};
+ACT.inkLogout=async()=>{if(!(window.INK&&INK.user))return;const vis=VISITOR();if(await confirmDlg(vis?'Sair do modo visitante? As fichas feitas como visitante ficam presas a este acesso — para guardar, crie uma conta antes de sair.':'Sair da sua conta neste aparelho? Seus projetos continuam salvos na nuvem.',vis?'Sair mesmo assim':'Sair'))INK.logout()};
 {const _rh=renderHome;renderHome=function(...a){const r=_rh.apply(this,a);if(FBAVAIL()&&!FBM()&&!document.getElementById('inkLocal')){const h=document.querySelector('.hero');if(h)h.insertAdjacentHTML('afterend',`<div class="notice" id="inkLocal" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 16px"><span style="flex:1;min-width:200px">☁ Você está <b>sem conta</b>: os projetos ficam só neste navegador. Entre para salvar na nuvem, usar em qualquer aparelho e jogar na mesa ao vivo.</span><button class="btn primary sm" data-act="inkLogin">Entrar ou criar conta</button></div>`)}return r}}
 
 
@@ -5524,6 +5525,18 @@ function visitorBlock(what){toast('Visitantes só jogam em mesas abertas. Crie u
 {const _aj=aclJoin;aclJoin=async function(){const g=T.game;if(VISITOR()&&g&&!isMaster()&&!(g.players||{})[S.uid]&&gAccess(g)!=='public')throw aclErr('Visitantes só entram em mesas públicas. Crie uma conta grátis para jogar nesta mesa.');return _aj.apply(this,arguments)}}
 {const _rl2=renderLobby;renderLobby=function(){const r=_rl2.apply(this,arguments);if(!VISITOR()||!T.game||isMember())return r;
  if(gAccess()!=='public'){const btn=$('#tLobby [data-act=tEnter][data-as=player]');if(btn){btn.disabled=true;if(!$('#tLobby .pl-note'))btn.insertAdjacentHTML('beforebegin','<p class="pl-note">Visitantes jogam só em mesas públicas. <a href="#" data-act="inkLogin">Criar conta</a></p>')}}return r}}
+
+
+/* ============ v23: botão de sair da conta ============ */
+ICONS.logout='<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M9 16l-4-4 4-4"/><path d="M5 12h11"/>';
+{const _acc=ACT.account;ACT.account=function(el,...a){
+ if(FBAVAIL()&&window.INK&&INK.user&&el&&el.classList&&el.classList.contains('acct')){const vis=VISITOR(),u=INK.user;
+  return ikMenu(el,[
+   {i:I('pen'),t:'Minha conta',d:'Apelido, ícone e senha do app',run:()=>_acc.call(this,{dataset:{}})},
+   ...(vis?[{i:'✨',t:'Criar conta grátis',d:'Escrever, criar mesas e mestrar',run:()=>INK.login()}]:[]),
+   {i:I('brush'),t:'Tema do app',run:()=>ACT.themeQuick({dataset:{}})},
+   '-',{i:I('logout'),t:'Sair da conta',d:vis?'Sai do modo visitante':'Neste aparelho',run:()=>ACT.inkLogout()}],{title:vis?'Visitante · '+((S.me&&S.me.name)||''):(u.email||(S.me&&S.me.name)||'Conta')})}
+ return _acc.call(this,el,...a)}}
 
 /* ============ início ============ */
 window.addEventListener('beforeunload',()=>{try{flushChapter()}catch{}});
