@@ -1035,12 +1035,18 @@ function clean(html){
 }
 function txtToHtml(t){return String(t||'').replace(/\r/g,'').split(/\n{2,}|\n/).map(l=>l.trim()).filter(Boolean).map(l=>/^(\*\s*){3}$|^[-_*]{3,}$|^✦/.test(l)?'<hr class="scene">':'<p>'+esc(l)+'</p>').join('')}
 
+/* ============ Firebase (versão do GitHub) ============ */
+window.INK_FB=window.INK_FB||{apiKey:'AIzaSyAmuRcFjERV-dDY-lLj9Zy8NsF2xTsfFOo',authDomain:'inkmind-5c1ee.firebaseapp.com',projectId:'inkmind-5c1ee',storageBucket:'inkmind-5c1ee.firebasestorage.app',messagingSenderId:'1073024919939',appId:'1:1073024919939:web:4ba951f6f38b1721506eb6'};
+const FBM=()=>!!(window.INK&&INK.mode==='firebase'&&INK.user);
+const FBAVAIL=()=>!!(window.INK_FB&&INK_FB.apiKey)&&(!window.claude||!!window.INK);
+const CLOUD_NEED=()=>FBAVAIL()?'entrando na sua conta do Inkmind':'com o app aberto no claude.ai';
 /* ============ armazenamento ============ */
 const LS='escritas:';
 let lsOK=true;try{localStorage.setItem(LS+'t','1');localStorage.removeItem(LS+'t')}catch{lsOK=false}
 const mem={};
 const Store={
  async init(){
+  if(!window.claude&&window.INK_FB&&INK_FB.apiKey){try{const m=await import(INK_FB.src||'./inkmind-fb.js');m.start(INK_FB)}catch(e){console.warn('[inkmind] firebase',e);setTimeout(()=>toast('Não foi possível conectar à nuvem agora — usando o modo local deste navegador.','err'),1500)}}
   const use=n=>(window.claude&&typeof claude.use==='function')?Promise.resolve(claude.use(n)).catch(()=>null):Promise.resolve(null);
   const [db,user,assets,downloads,room,sample]=await Promise.all([use('db'),use('user'),use('assets'),use('downloads'),use('room'),use('sample')]);S.room=room;S.sample=sample;
   S.assets=assets;S.downloads=downloads;S.user=user;
@@ -1943,7 +1949,7 @@ RENDER.export=()=>{
    </div>
    <div style="display:flex;flex-direction:column;gap:18px">
     <div class="card pubcard"><h3>🌍 Publicar</h3><p class="muted small">${p.type==='rpg'?'Coloca a campanha na busca de RPG: jogadores leem o livro da campanha e entram na mesa quando você estiver conectado.':'Coloca o livro na Biblioteca: quem usa o Inkmind pode encontrar e ler. Rascunhos não são publicados.'}</p>
-     ${S.backend!=='cloud'?'<div class="notice">Publicar só funciona com o app aberto no claude.ai.</div>':`<div class="row wrap"><button class="btn primary" data-act="pubDo">${p.published?'🔄 Atualizar publicação':'🌍 Publicar agora'}</button>${p.published?'<button class="btn ghost" data-act="explore">Ver na Biblioteca</button><button class="btn ghost danger" data-act="pubUndo">Despublicar</button>':''}</div>${p.published?`<p class="small muted" style="margin-bottom:0">Publicado em ${new Date(p.published.at).toLocaleString('pt-BR')}. Mudanças novas só aparecem depois de atualizar.</p>`:''}`}</div>
+     ${S.backend!=='cloud'?`<div class="notice">Publicar só funciona ${CLOUD_NEED()}.${FBAVAIL()?' <a href="#" data-act="inkLogin">Entrar</a>':''}</div>`:`<div class="row wrap"><button class="btn primary" data-act="pubDo">${p.published?'🔄 Atualizar publicação':'🌍 Publicar agora'}</button>${p.published?'<button class="btn ghost" data-act="explore">Ver na Biblioteca</button><button class="btn ghost danger" data-act="pubUndo">Despublicar</button>':''}</div>${p.published?`<p class="small muted" style="margin-bottom:0">Publicado em ${new Date(p.published.at).toLocaleString('pt-BR')}. Mudanças novas só aparecem depois de atualizar.</p>`:''}`}</div>
     <div class="card"><h3>Dados do livro</h3>
      <div class="row" style="align-items:flex-start;gap:14px;margin-top:8px"><div style="width:110px;flex:none"><div class="cover ${p.cover?'hasimg':''}" style="${coverStyle(p)};padding:10px;cursor:pointer" data-act="setCover">${p.cover?`<img src="${esc(p.cover)}" alt="">`:''}<div class="ct" style="font-size:13px;font-family:${fontStack(p.settings.headFont)}">${esc(p.title)}</div></div><div class="small muted" style="text-align:center;margin-top:4px">toque p/ trocar capa</div></div>
      <div class="grow"><label class="f" style="margin-top:0">Autor(a)</label><input id="exAuthor" value="${esc(p.author||'')}"><label class="f">Gênero</label><select id="exGenre">${GENRES.map(g=>`<option ${p.genre===g?'selected':''}>${g}</option>`).join('')}</select></div></div>
@@ -2257,7 +2263,7 @@ function gamePatch(patch){T.game=deepMerge(T.game,patch);sharedWrite('games/'+T.
 /* abrir / fechar mesa */
 function closeTable(){try{ambStop()}catch{}['reqcard','reqres'].forEach(i=>{const e=document.getElementById(i);if(e)e.remove()});if(T.gid)setPresence({gid:null,role:null});(T.unsub||[]).forEach(u=>{try{u()}catch{}});T.unsub=[];try{saveMapD.flush()}catch{}}
 async function openTable(gid,opts={}){
- if(S.backend!=='cloud'||!S.uid){await modal({title:'Mesa de jogo',body:'<p>A mesa de jogo funciona com o app aberto no claude.ai, com sua conta conectada — assim mestre e jogadores veem tudo ao vivo.</p>',actions:[{label:'Entendi',cls:'primary'}]});return}
+ if(S.backend!=='cloud'||!S.uid){await modal({title:'Mesa de jogo',body:FBAVAIL()?'<p>A mesa de jogo funciona com a sua conta do Inkmind — assim mestre e jogadores veem tudo ao vivo, cada um no seu aparelho.</p>':'<p>A mesa de jogo funciona com o app aberto no claude.ai, com sua conta conectada — assim mestre e jogadores veem tudo ao vivo.</p>',actions:FBAVAIL()?[{label:'Agora não'},{label:'Entrar',cls:'primary',value:'in'}]:[{label:'Entendi',cls:'primary'}]}).then(v=>{if(v==='in')INK.login()});return}
  closeTable();
  Object.assign(T,{gid,entered:!!opts.from,playerOnly:false,tplTab:'fields',from:opts.from||null,game:null,maps:{},seats:[],mode:'player',tab:'sheet',mtab:'tpl',unsub:[],loaded:false,edit:null,undo:[],rect:null,dragTok:null,tplJ:'',shownMap:null,bgCache:{},view:'tabs',seenRolls:new Set(),seedS:false,seedG:false,lastTrans:null,sessAt:undefined,doorSeen:{},doorSeeded:false,transBusy:false,localDoor:0,hSeen:new Set(),hSeeded:false,qSeen:null,reqWatch:null,pendSeen:null,deathTk:null,hpPrev:{}});
  S.P=null;document.body.classList.remove('focus');
@@ -2946,7 +2952,7 @@ const prof=()=>S.prefs.profile||(S.prefs.profile={nick:'',emoji:'🖋️',color:
 const myName=()=>prof().nick||(S.me&&S.me.name)||'Você';
 function accountChip(){const p=prof();return `<button class="acct" data-act="account" title="Minha conta"><span class="tok" style="background:${esc(p.color)};width:28px;height:28px;font-size:15px">${esc(p.emoji)}</span><span class="hide-m">${esc(myName())}</span>${S.prefs.lock?'🔒':''}</button>`}
 ACT.account=async()=>{const p=prof(),o={emoji:p.emoji,color:p.color};
- const v=await modal({title:'Minha conta',wide:true,body:`<div class="notice" style="background:var(--panel2);border-color:var(--line)">Você entra no Inkmind com a sua conta do claude.ai${S.me&&S.me.name?` (<b>${esc(S.me.name)}</b>)`:''} — por isso seus projetos ficam só seus, em qualquer aparelho. Aqui você define como aparece para os outros e uma senha extra para abrir o app.</div>
+ const v=await modal({title:'Minha conta',wide:true,body:`<div class="notice" style="background:var(--panel2);border-color:var(--line)">${FBM()&&INK.user?`Você está na sua conta do Inkmind (<b>${esc(INK.user.email||S.me&&S.me.name||'')}</b>) — seus projetos ficam salvos na nuvem e só você os vê. <a href="#" data-act="inkLogout">Sair da conta</a>`:FBAVAIL()?`Você está usando o Inkmind <b>sem conta</b>: tudo fica salvo só neste navegador. <a href="#" data-act="inkLogin">Entrar ou criar conta</a>`:`Você entra no Inkmind com a sua conta do claude.ai${S.me&&S.me.name?` (<b>${esc(S.me.name)}</b>)`:''} — por isso seus projetos ficam só seus, em qualquer aparelho.`} Aqui você define como aparece para os outros e uma senha extra para abrir o app.</div>
   <label class="f">Apelido público (aparece como autor nas publicações e na mesa)</label><input id="acN" value="${esc(p.nick)}" maxlength="40" placeholder="${esc(S.me&&S.me.name||'Seu nome de autor')}">
   <label class="f">Ícone</label>${tokenPickerHTML(o.emoji,o.color)}
   <label class="f">Sobre você</label><textarea id="acB" rows="2" placeholder="Escritor de fantasia, mestre de RPG às sextas…">${esc(p.bio)}</textarea>
@@ -3008,7 +3014,7 @@ ACT.genImg=async()=>{const r=await genImage();if(r&&S.P&&S.view==='gallery')REND
 
 /* ============ publicar e biblioteca ============ */
 async function publishProject(){
- const p=P();if(S.backend!=='cloud'||!S.uid){toast('Publicar só funciona com o app aberto no claude.ai.','err');return}
+ const p=P();if(S.backend!=='cloud'||!S.uid){toast('Publicar só funciona '+CLOUD_NEED()+'.','err');return}
  await flushChapter();ensureOutline(p);const b=busy('Publicando…');
  try{
   const base='pubs/'+S.uid,bp=base+'/books/'+p.id;const order=bookOrder();const toc=[];let lastF=null,words=0;
@@ -3044,7 +3050,7 @@ async function renderExplore(){
   <div class="shelf" id="exList"><div class="empty" style="grid-column:1/-1"><div class="spin" style="margin:0 auto 10px"></div>Carregando publicações…</div></div></div>`;
  $('#exq').oninput=debounce(()=>{S.exQ=$('#exq').value;drawExplore()},200);
  $$('#exK button').forEach(b=>b.onclick=()=>{S.exK=b.dataset.k;$$('#exK button').forEach(x=>x.classList.toggle('on',x===b));drawExplore()});
- if(S.backend!=='cloud'){$('#exList').innerHTML='<div class="empty" style="grid-column:1/-1"><div class="big">Biblioteca indisponível</div><p>Abra o app no claude.ai para ver e publicar livros e RPGs.</p></div>';return}
+ if(S.backend!=='cloud'){$('#exList').innerHTML=`<div class="empty" style="grid-column:1/-1"><div class="big">Biblioteca indisponível</div><p>${FBAVAIL()?'<a href="#" data-act="inkLogin">Entre na sua conta do Inkmind</a>':'Abra o app no claude.ai'} para ver e publicar livros e RPGs.</p></div>`;return}
  try{const snap=await withTimeout(S.db.collection('pubs').get(),15000);const items=[];snap.docs.forEach(d=>{const it=(d.data()||{}).items||{};for(const k in it)if(it[k])items.push({...it[k],owner:d.id})});S.pubs=items.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))}
  catch(e){console.warn(e);S.pubs=[]}
  drawExplore();
@@ -4441,7 +4447,7 @@ ACT.importBackup=async()=>{
  const [f]=await pickFile('.json,application/json');if(!f)return;let data;
  try{data=JSON.parse(await f.text());if(!['escritas','inkmind'].includes(data.app)||!data.project)throw 0}catch{toast('Arquivo de backup inválido.','err');return}
  let withTable=false,withSeats=false;
- if(data.table){if(S.backend!=='cloud')toast('Este backup tem uma mesa de jogo; ela só pode ser restaurada com o app aberto no claude.ai. Restaurando só o projeto.');
+ if(data.table){if(S.backend!=='cloud')toast('Este backup tem uma mesa de jogo; ela só pode ser restaurada '+CLOUD_NEED()+'. Restaurando só o projeto.');
   else{const v=await modal({title:'Restaurar backup',body:`<p style="margin-top:0">“${esc(data.project.title)}” será restaurado como um <b>novo projeto</b> na sua estante.</p><label class="toggle"><input type="checkbox" id="riT" checked><span class="sw"></span>Restaurar também a mesa de jogo (${Object.keys(data.table.maps||{}).length} mapa(s), ${(data.table.game.chars||[]).length} personagem(ns))</label>${Object.keys(data.table.seats||{}).length?`<label class="toggle"><input type="checkbox" id="riS" checked><span class="sw"></span>Devolver as fichas aos jogadores (${Object.keys(data.table.seats).length}) — eles verão a mesa restaurada em “Minhas mesas”</label>`:''}`,actions:[{label:'Cancelar'},{label:'Restaurar',cls:'primary',onClick:ov=>({t:$('#riT',ov).checked,s:!!($('#riS',ov)&&$('#riS',ov).checked)})}]});
    if(!v)return;withTable=v.t;withSeats=v.t&&v.s}}
  const b=busy('Restaurando…');
@@ -5287,6 +5293,12 @@ const _gather16=gather;gather=async function(){const chs=await _gather16();const
   add('Verificação ortográfica','Ligar/desligar',()=>{S.prefs.noSpell=!S.prefs.noSpell;savePrefs();applySpell();toast(S.prefs.noSpell?'Verificação ortográfica desligada':'Verificação ortográfica ligada')},{i:'✓',w:'Barra › Revisar',k:'ortografia corretor erros'}),
   add('Atalhos de teclado','',()=>ACT.kbHelp(),{i:'⌨',w:'Barra › Exibir',k:'teclas'})];
  let at=-1;L.forEach((x,i)=>{if(x.g==='Escrever')at=i});L.splice(at+1,0,...items);return L}}
+
+
+/* ============ v18: Firebase — entrar/sair e aviso na Estante ============ */
+ACT.inkLogin=()=>{if(window.INK)INK.login();else location.reload()};
+ACT.inkLogout=async()=>{if(!FBM())return;if(await confirmDlg('Sair da sua conta neste aparelho? Seus projetos continuam salvos na nuvem.','Sair'))INK.logout()};
+{const _rh=renderHome;renderHome=function(...a){const r=_rh.apply(this,a);if(FBAVAIL()&&!FBM()&&!document.getElementById('inkLocal')){const h=document.querySelector('.hero');if(h)h.insertAdjacentHTML('afterend',`<div class="notice" id="inkLocal" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 16px"><span style="flex:1;min-width:200px">☁ Você está <b>sem conta</b>: os projetos ficam só neste navegador. Entre para salvar na nuvem, usar em qualquer aparelho e jogar na mesa ao vivo.</span><button class="btn primary sm" data-act="inkLogin">Entrar ou criar conta</button></div>`)}return r}}
 
 /* ============ início ============ */
 window.addEventListener('beforeunload',()=>{try{flushChapter()}catch{}});

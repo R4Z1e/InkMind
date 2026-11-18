@@ -1,0 +1,74 @@
+rules_version = '2';
+// Regras do Inkmind — cole em Firestore Database → Regras → Publicar
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function masterOf(gid) { return exists(/databases/$(database)/documents/games/$(gid)) && get(/databases/$(database)/documents/games/$(gid)).data.masterId == me(); }
+
+    // Projetos, capítulos, comentários, versões e preferências: só o dono
+    match /data/users/{uid}/{key} {
+      allow read, write: if signedIn() && me() == uid;
+    }
+
+    // Perfil público (nome que aparece na mesa)
+    match /profiles/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && me() == uid;
+    }
+
+    // Mesas de jogo: todos com conta leem; só o mestre altera
+    match /games/{gid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.masterId == me();
+      allow update: if signedIn() && resource.data.masterId == me() && request.resource.data.masterId == me();
+      allow delete: if signedIn() && resource.data.masterId == me();
+      match /maps/{mid} {
+        allow read: if signedIn();
+        allow write: if signedIn() && masterOf(gid);
+      }
+    }
+
+    // Fichas dos jogadores: cada um mexe na sua; o mestre mexe só na parte da mesa dele (campo g.<mesa>)
+    match /seats/{uid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && (
+        me() == uid ||
+        (request.resource.data._gm is string && masterOf(request.resource.data._gm) &&
+         request.resource.data.keys().hasOnly(['uid', 'gids', 'g', '_gm']) &&
+         request.resource.data.gids == [request.resource.data._gm] &&
+         request.resource.data.g.keys().hasOnly([request.resource.data._gm])));
+      allow update: if signedIn() && (
+        me() == uid ||
+        (request.resource.data._gm is string && masterOf(request.resource.data._gm) &&
+         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['g', 'gids', '_gm']) &&
+         request.resource.data.g.diff(resource.data.get('g', {})).affectedKeys().hasOnly([request.resource.data._gm]) &&
+         request.resource.data.get('gids', []).toSet().difference(resource.data.get('gids', []).toSet()).hasOnly([request.resource.data._gm]) &&
+         resource.data.get('gids', []).toSet().difference(request.resource.data.get('gids', []).toSet()).size() == 0));
+      allow delete: if signedIn() && me() == uid;
+    }
+
+    // Presença (quem está online na mesa)
+    match /presence/{uid} {
+      allow read: if signedIn();
+      allow write: if signedIn() && me() == uid;
+    }
+
+    // Biblioteca pública: qualquer pessoa lê; cada autor publica só o que é seu
+    match /pubs/{owner} {
+      allow read: if true;
+      allow write: if signedIn() && me() == owner;
+      match /{rest=**} {
+        allow read: if true;
+        allow write: if signedIn() && me() == owner;
+      }
+    }
+
+    // Imagens enviadas: leitura pública (endereços impossíveis de adivinhar); só o dono cria/apaga
+    match /blobs/{id} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.owner == me() && request.resource.data.data is string && request.resource.data.data.size() < 1000000;
+      allow update, delete: if signedIn() && resource.data.owner == me();
+    }
+  }
+}

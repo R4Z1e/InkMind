@@ -2,20 +2,26 @@
 
 Escreva • Publique • Jogue • Viva suas histórias
 
-**Versão atual:** v17 — 18/11/2026
+**Versão atual:** v18 — 18/11/2026 (conta e nuvem com Firebase)
 
 App para escrever livros e criar/jogar RPG de mesa: editor com ferramentas do Word, compêndio do mundo, visualização de impressão com sumário automático, exportação (PDF, Word, EPUB, HTML, Markdown, TXT) e mesa de RPG com mapas, fichas e dados.
 
 ## Como abrir
 Basta abrir o `index.html` num navegador, ou publicar pelo GitHub Pages (Settings → Pages → Deploy from a branch → `main` / `/ (root)`).
 
-## Modo local (versão do GitHub)
-Fora do Claude o app roda em **modo local**:
-- os projetos ficam salvos **no navegador** de cada aparelho (use *Exportar → Baixar backup* para guardar uma cópia);
-- não há login, mesa ao vivo com outros jogadores, Explorar/Biblioteca pública nem geração de imagem por IA.
+## Conta e nuvem (Firebase)
+Ao abrir o site, o Inkmind pede para **entrar** (Google ou e-mail e senha). Com conta:
+- livros e campanhas ficam salvos na nuvem e aparecem em qualquer aparelho;
+- a **mesa de RPG ao vivo** funciona (mestre e jogadores, cada um no seu aparelho);
+- dá para publicar na biblioteca (Explorar).
 
-Essas funções online voltam quando a camada de dados for trocada pelo **Firebase** (próxima etapa).
+Também dá para **continuar sem conta**: aí tudo fica só no navegador daquele aparelho.
+A geração de imagem por IA continua disponível só na versão dentro do Claude.
 
 ## Arquivos
 - `index.html` — o app inteiro
 - `img/` — logo, banner, ícones e marca d'água
+- `inkmind-fb.js` — conexão com o Firebase (login, banco de dados, imagens)
+- `sw.js` — serve as imagens enviadas
+- `firestore.rules` — regras de segurança do banco
+- `fb/` — código-fonte da conexão com o Firebase
