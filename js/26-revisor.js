@@ -23,18 +23,20 @@ const DictDB={mem:{},_db:null,
 let RVW=null,RVN=0;const RVP={},RVLoaded={};
 function rvWorker(){if(RVW)return RVW;try{RVW=new Worker(new URL('js/lib/spell-worker.js?v=31',document.baseURI).href);RVW.onmessage=e=>{const m=e.data,p=RVP[m.id];if(!p)return;delete RVP[m.id];m.ok?p.res(m):p.rej(new Error(m.error||'erro'))};RVW.onerror=e=>{console.warn('corretor',e);}}catch(e){console.warn('worker',e);RVW=null}return RVW}
 function rvCall(msg,transfer){const w=rvWorker();if(!w)return Promise.reject(new Error('sem worker'));const id=++RVN;return new Promise((res,rej)=>{RVP[id]={res,rej};w.postMessage({...msg,id},transfer||[])})}
-async function rvEnsure(lang){if(RVLoaded[lang])return RVLoaded[lang];const buf=await DictDB.get('d:'+lang);if(!buf)return false;
- RVLoaded[lang]=rvCall({t:'loadBuf',lang,buf:buf.slice(0)}).then(()=>true).catch(e=>{console.warn(e);delete RVLoaded[lang];return false});return RVLoaded[lang]}
+async function rvEnsure(lang){if(RVLoaded[lang])return RVLoaded[lang];const v=await DictDB.get('d:'+lang);if(!v)return false;
+ const fmt=v.fmt||'gz',buf=v.buf||v;   // gz (site) ou txt (artefato do Claude, que não serve .gz)
+ RVLoaded[lang]=(fmt==='txt'?rvCall({t:'load',lang,text:new TextDecoder().decode(buf)}):rvCall({t:'loadBuf',lang,buf:buf.slice(0)})).then(()=>true).catch(e=>{console.warn(e);delete RVLoaded[lang];return false});return RVLoaded[lang]}
 function rvUserWords(){const p=P();if(!p||!RVW)return;const ws=new Set();dictWords(p).forEach(w=>{ws.add(w);w.split(/[\s-]+/).forEach(x=>x&&ws.add(x))});
  (p.codex||[]).forEach(e=>{if(e.name){ws.add(e.name);e.name.split(/[\s,.'’()-]+/).forEach(x=>x&&ws.add(x))}});((p.rvIgnore||{}).words||[]).forEach(w=>ws.add(w));rvCall({t:'user',words:[...ws]}).catch(()=>{})}
 const rvLang=()=>{const p=P();return (p&&p.lang)||S.prefs.spellLang||'pt-BR'};
 
 /* ---------- gerenciador de dicionários ---------- */
-async function rvDownload(L,onP){const r=await fetch(new URL(L.f,document.baseURI).href);if(!r.ok)throw new Error('HTTP '+r.status);
+async function rvDownload(L,onP){let fmt='gz',r=null;try{r=await fetch(new URL(L.f,document.baseURI).href)}catch{}
+ if(!r||!r.ok){fmt='txt';r=await fetch(new URL(L.f.replace(/\.gz$/,'.txt'),document.baseURI).href)}if(!r.ok)throw new Error('HTTP '+r.status);
  const total=+r.headers.get('content-length')||0,rd=r.body.getReader(),parts=[];let got=0;
  for(;;){const {done,value}=await rd.read();if(done)break;parts.push(value);got+=value.length;onP&&onP(total?got/total:0,got)}
  const buf=new Uint8Array(got);let o=0;for(const p of parts){buf.set(p,o);o+=p.length}
- await DictDB.put('d:'+L.k,buf.buffer);delete RVLoaded[L.k];return true}
+ await DictDB.put('d:'+L.k,{fmt,buf:buf.buffer});delete RVLoaded[L.k];return true}
 ACT.rvDicts=async()=>{const have={};for(const L of RV_LANGS)have[L.k]=await DictDB.has('d:'+L.k);const cur=rvLang();
  await modal({title:'📚 Dicionários do corretor',wide:true,body:`<p style="margin-top:0">Baixe o dicionário do idioma em que você escreve. Ele fica guardado neste aparelho e funciona sem internet. O corretor também aceita as palavras do seu <b>Dicionário do escritor</b> e os nomes da sua wiki.</p>
   <div id="rvDl">${RV_LANGS.map(L=>`<div class="rv-dict" data-k="${L.k}"><div class="grow"><b>${L.n}</b><div class="small muted">${L.mb} · ${L.lic}</div><div class="rv-prog" style="display:none"><i></i></div></div>
