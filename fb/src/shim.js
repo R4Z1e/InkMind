@@ -264,6 +264,18 @@ ${up ? '<div class="ft"><a id="ilBack">Voltar sem criar conta</a><br><span>“J�
         await del(`games/${gid}/secret/gm`); if (gd.code) await del('invites/' + gd.code); await del('games/' + gid);
       }
     } catch (e) { console.warn('[inkmind] mesas', e); }
+    step('Saindo dos projetos compartilhados…');
+    try {
+      for (const c of (await F.getDocs(F.query(F.collection(fs, 'collab'), F.where('members.' + uid, 'in', ['owner', 'edit', 'beta'])))).docs) {
+        const d = c.data() || {};
+        if (d.owner === uid) {
+          for (const k of await list(`collab/${c.id}/k`)) await del(`collab/${c.id}/k/${k}`);
+          for (const n of await list(`collab/${c.id}/notes`)) await del(`collab/${c.id}/notes/${n}`);
+          for (const code of Object.values(d.codes || {})) await del('cinv/' + code);
+          await del('collab/' + c.id);
+        } else { try { await F.updateDoc(F.doc(fs, 'collab/' + c.id), new F.FieldPath('members', uid), F.deleteField(), new F.FieldPath('names', uid), F.deleteField()); } catch {} }
+      }
+    } catch (e) { console.warn('[inkmind] compartilhados', e); }
     step('Saindo das mesas e apagando fichas…');
     try { const sd = await F.getDoc(F.doc(fs, 'seats/' + uid)); if (sd.exists()) for (const gid of (sd.data().gids || [])) { try { await F.updateDoc(F.doc(fs, 'games/' + gid), new F.FieldPath('players', uid), F.deleteField()); } catch {} } } catch {}
     await del('seats/' + uid); await del('presence/' + uid);

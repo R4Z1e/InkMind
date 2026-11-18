@@ -115,6 +115,51 @@ service cloud.firestore {
       }
     }
 
+    // Escrita a várias mãos: projeto compartilhado (dono, coautores e leitores beta)
+    function colDoc(pid) { return get(/databases/$(database)/documents/collab/$(pid)).data; }
+    function colMember(pid) { return fullUser() && colDoc(pid).members[me()] in ['owner', 'edit', 'beta']; }
+    function colWriter(pid) { return fullUser() && colDoc(pid).members[me()] in ['owner', 'edit']; }
+    function colChanged() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function colMembersChanged() { return request.resource.data.get('members', {}).diff(resource.data.get('members', {})).affectedKeys(); }
+    function colJoin(pid) {
+      let code = request.resource.data.get('jc', '');
+      let inv = get(/databases/$(database)/documents/cinv/$(code)).data;
+      return colChanged().hasOnly(['members', 'names', 'jc']) && inv.pid == pid &&
+        colMembersChanged().hasOnly([me()]) && request.resource.data.members[me()] == inv.role &&
+        !(me() in resource.data.get('banned', {}));
+    }
+    function colLeave() {
+      return colChanged().hasOnly(['members', 'names', 'locks']) && colMembersChanged().hasOnly([me()]) &&
+        resource.data.members[me()] in ['edit', 'beta'] && !(me() in request.resource.data.members);
+    }
+    match /collab/{pid} {
+      allow get: if fullUser() && (resource == null || resource.data.members[me()] in ['owner', 'edit', 'beta']);
+      allow list: if fullUser() && resource.data.members[me()] in ['owner', 'edit', 'beta'];
+      allow create: if fullUser() && request.resource.data.owner == me() &&
+        request.resource.data.members.keys().hasOnly([me()]) && request.resource.data.members[me()] == 'owner';
+      allow update: if fullUser() && (
+        (resource.data.owner == me() && request.resource.data.owner == me() && request.resource.data.members[me()] == 'owner') ||
+        (resource.data.members.get(me(), '') == 'edit' && colChanged().hasOnly(['locks', 'names', 't', 'title'])) ||
+        colJoin(pid) || colLeave());
+      allow delete: if fullUser() && resource.data.owner == me();
+      match /k/{key} {
+        allow read: if colMember(pid);
+        allow write: if colWriter(pid);
+      }
+      match /notes/{nid} {
+        allow read: if colMember(pid);
+        allow create: if colMember(pid) && request.resource.data.by == me() && request.resource.data.get('text', '').size() <= 1500;
+        allow update: if colWriter(pid) || (colMember(pid) && resource.data.by == me());
+        allow delete: if colWriter(pid) || (colMember(pid) && resource.data.by == me());
+      }
+    }
+    // Convites para projetos compartilhados: o código leva ao projeto; só o dono cria ou apaga
+    match /cinv/{code} {
+      allow read: if fullUser();
+      allow create, update: if fullUser() && colDoc(request.resource.data.pid).owner == me();
+      allow delete: if fullUser() && colDoc(resource.data.pid).owner == me();
+    }
+
     // Denúncias: qualquer pessoa conectada envia; só a moderação lê e resolve
     match /reports/{rid} {
       allow create: if signedIn() && request.resource.data.by == me() && request.resource.data.status == 'open' &&

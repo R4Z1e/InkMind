@@ -40,6 +40,31 @@ function mockRule(op, path, next, prev) {
     if (seg[2] === 'maps' && op === 'get' && g && !canReadGame(g, me)) deny();
     if (seg[2] === 'requests') { if (op === 'get' && seg[3] !== me && g.masterId !== me) deny(); if (op === 'create' && seg[3] !== me) deny(); if (op === 'update' && g.masterId !== me) deny(); }
   }
+  if (seg[0] === 'collab') {
+    const c = read('collab/' + seg[1]), role = c && (c.members || {})[me];
+    const chg = (a, b) => [...new Set([...Object.keys(a || {}), ...Object.keys(b || {})])].filter(k => JSON.stringify((a || {})[k]) !== JSON.stringify((b || {})[k]));
+    if (anon) deny();
+    if (seg.length === 2) {
+      if (op === 'get') { if (c && !role) deny(); return; }
+      if (op === 'create') { const ks = Object.keys(next.members || {}); if (next.owner !== me || ks.length !== 1 || ks[0] !== me || next.members[me] !== 'owner') deny(); return; }
+      if (op === 'delete') { if (!prev || prev.owner !== me) deny(); return; }
+      if (op === 'update') {
+        if (prev.owner === me && next.owner === me && (next.members || {})[me] === 'owner') return;
+        const ks = chg(next, prev), mk = chg(next.members, prev.members);
+        if ((prev.members || {})[me] === 'edit' && ks.every(k => ['locks', 'names', 't', 'title'].includes(k))) return;
+        const inv = next.jc && read('cinv/' + next.jc);
+        if (inv && inv.pid === seg[1] && ks.every(k => ['members', 'names', 'jc'].includes(k)) && mk.every(k => k === me) && (next.members || {})[me] === inv.role && !(prev.banned || {})[me]) return;
+        if (['edit', 'beta'].includes((prev.members || {})[me]) && ks.every(k => ['members', 'names', 'locks'].includes(k)) && mk.every(k => k === me) && !(next.members || {})[me]) return;
+        deny();
+      }
+      return;
+    }
+    if (!role) deny();
+    if (seg[2] === 'k' && op !== 'get' && !['owner', 'edit'].includes(role)) deny();
+    if (seg[2] === 'notes') { if (op === 'create' && next.by !== me) deny(); if ((op === 'update' || op === 'delete') && !['owner', 'edit'].includes(role) && (prev || {}).by !== me) deny(); }
+    return;
+  }
+  if (seg[0] === 'cinv' && op !== 'get') { const pid = op === 'delete' ? (prev || {}).pid : next.pid; const c = read('collab/' + pid); if (anon || !c || c.owner !== me) deny(); return; }
   if (seg[0] === 'reports') { if (op === 'create') { if (!me || next.by !== me || next.status !== 'open') deny(); return; } if (!isAdm()) deny(); return; }
   if (seg[0] === 'hidden' && op !== 'get' && !isAdm()) deny();
   if (seg[0] === 'invites' && (op === 'create' || op === 'update')) { const g = read('games/' + next.gid); if (!g || g.masterId !== me) deny(); }
@@ -54,7 +79,7 @@ const snapOf = p => { const d = read(p); return { id: p.split('/').pop(), exists
 function colDocs(q) {
   const out = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (!k.startsWith(LSK)) continue; const p = k.slice(LSK.length); if (parent(p) !== q.path) continue; out.push(p); }
   out.sort();
-  return out.map(snapOf).filter(s => (q.wheres || []).every(w => { const v = getAt(s.data(), w.f.split('.')); switch (w.op) { case '==': return v === w.v; case 'array-contains': return Array.isArray(v) && v.includes(w.v); case '>': return v > w.v; case '<': return v < w.v; case '>=': return v >= w.v; case '<=': return v <= w.v; default: throw fsErr('invalid-argument', 'op ' + w.op); } }));
+  return out.map(snapOf).filter(s => (q.wheres || []).every(w => { const v = getAt(s.data(), w.f.split('.')); switch (w.op) { case '==': return v === w.v; case 'array-contains': return Array.isArray(v) && v.includes(w.v); case '>': return v > w.v; case '<': return v < w.v; case '>=': return v >= w.v; case '<=': return v <= w.v; case 'in': return Array.isArray(w.v) && w.v.includes(v); default: throw fsErr('invalid-argument', 'op ' + w.op); } }));
 }
 export const F = {
   FieldPath,
@@ -95,10 +120,10 @@ export const F = {
     }
     mockRule('update', ref.path, cur, before); write(ref.path, cur);
   },
-  async deleteDoc(ref) { write(ref.path, null); },
-  async getDocs(q) { await 0; const docs = colDocs(q).filter(d => { if (q.path === 'games') return canReadGame(d.data(), uidNow()); return true; }); if (q.path === 'reports' && !isAdm()) throw fsErr('permission-denied', 'Missing or insufficient permissions. (list reports)'); { const sg = q.path.split('/'); if (sg[0] === 'games' && (sg[2] === 'gmmaps' || sg[2] === 'secret')) { const g = read('games/' + sg[1]); if (!g || g.masterId !== uidNow()) throw fsErr('permission-denied', 'Missing or insufficient permissions. (list ' + q.path + ')'); } } if (q.path === 'games' && !(q.wheres||[]).length) {}  return { docs, size: docs.length, empty: !docs.length }; },
+  async deleteDoc(ref) { if (/^(collab|cinv)\//.test(ref.path)) mockRule('delete', ref.path, null, read(ref.path)); write(ref.path, null); },
+  async getDocs(q) { await 0; const docs = colDocs(q).filter(d => { if (q.path === 'games') return canReadGame(d.data(), uidNow()); return true; }); { const sg = q.path.split('/'); if (sg[0] === 'collab' && sg.length === 3) { const c = read('collab/' + sg[1]); if (!c || !(c.members || {})[uidNow()]) throw fsErr('permission-denied', 'Missing or insufficient permissions. (list ' + q.path + ')'); } if (q.path === 'collab' && !(q.wheres || []).some(w => w.f === 'members.' + uidNow())) throw fsErr('permission-denied', 'list collab sem filtro'); } if (q.path === 'reports' && !isAdm()) throw fsErr('permission-denied', 'Missing or insufficient permissions. (list reports)'); { const sg = q.path.split('/'); if (sg[0] === 'games' && (sg[2] === 'gmmaps' || sg[2] === 'secret')) { const g = read('games/' + sg[1]); if (!g || g.masterId !== uidNow()) throw fsErr('permission-denied', 'Missing or insufficient permissions. (list ' + q.path + ')'); } } if (q.path === 'games' && !(q.wheres||[]).length) {}  return { docs, size: docs.length, empty: !docs.length }; },
   onSnapshot(t, cb, err) {
-    try { if (t.type === 'doc') mockRule('get', t.path); else { const m = /^games\/([^/]+)\/(maps|requests|secret|gmmaps)$/.exec(t.path); if (m) { const g = read('games/' + m[1]); if (g && (m[2] === 'maps' ? !canReadGame(g, uidNow()) : g.masterId !== uidNow())) throw fsErr('permission-denied', 'no read ' + t.path); } } } catch (e) { setTimeout(() => err && err(e), 0); return () => {}; }
+    try { if (t.type === 'doc') mockRule('get', t.path); else { { const cm = /^collab\/([^/]+)\/(k|notes)$/.exec(t.path); if (cm) { const c = read('collab/' + cm[1]); if (!c || !(c.members || {})[uidNow()]) throw fsErr('permission-denied', 'no read ' + t.path); } } const m = /^games\/([^/]+)\/(maps|requests|secret|gmmaps)$/.exec(t.path); if (m) { const g = read('games/' + m[1]); if (g && (m[2] === 'maps' ? !canReadGame(g, uidNow()) : g.masterId !== uidNow())) throw fsErr('permission-denied', 'no read ' + t.path); } } } catch (e) { setTimeout(() => err && err(e), 0); return () => {}; }
     const l = t.type === 'doc'
       ? { match: p => p === t.path, fire: () => { try { cb(snapOf(t.path)); } catch (e) { console.error(e); } } }
       : { match: p => parent(p) === t.path, fire: () => { try { const docs = colDocs(t); cb({ docs, size: docs.length, empty: !docs.length }); } catch (e) { err ? err(e) : console.error(e); } } };
