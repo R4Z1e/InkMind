@@ -918,6 +918,31 @@ kbd{font:600 10.5px var(--ui,system-ui);border:1px solid var(--line);border-bott
 .mod-h{display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap}
 .pl-notif{margin-top:16px;font-size:13px;color:var(--muted)}
 .btn.danger{background:#c0392b!important;border-color:#c0392b!important;color:#fff!important}
+/* v26 — painel de status retrátil e ajustável; ferramenta Mover */
+.tbl-b.player,.tbl-b.master{position:relative}
+.st-grip,.st-tog{display:none}
+@media (min-width:861px){
+ .tbl-b.player{grid-template-columns:minmax(0,1fr) var(--stw,300px)}
+ .tbl-b.master{grid-template-columns:var(--stw,310px) minmax(0,1fr)}
+  .tbl-b.stc>.stpanel{visibility:hidden;padding:0;border:0;overflow:hidden}
+ .st-grip{display:block;position:absolute;top:0;bottom:0;width:9px;z-index:6;cursor:col-resize;touch-action:none}
+ .tbl-b[data-side=right]>.st-grip{right:calc(var(--stw,300px) - 5px)}.tbl-b[data-side=left]>.st-grip{left:calc(var(--stw,310px) - 5px)}
+ .st-grip::after{content:'';position:absolute;top:0;bottom:0;left:4px;width:2px;background:transparent;transition:background .15s}
+ .st-grip:hover::after,.st-drag>.st-grip::after{background:var(--accent)}
+ .st-drag{cursor:col-resize;user-select:none}.st-drag>*{pointer-events:none}.st-drag>.st-grip{pointer-events:auto}
+ .tbl-b.stc>.st-grip{display:none}
+ .st-tog{display:flex;align-items:center;justify-content:center;gap:6px;position:absolute;top:50%;transform:translateY(-50%);z-index:7;width:22px;height:46px;padding:0;border:1px solid var(--line);background:var(--panel2);color:var(--muted);font-size:16px;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+ .st-tog:hover{color:var(--ink);border-color:var(--accent)}
+ .tbl-b[data-side=right]>.st-tog{right:calc(var(--stw,300px) - 11px);border-radius:8px}
+ .tbl-b[data-side=left]>.st-tog{left:calc(var(--stw,310px) - 11px);border-radius:8px}
+ .st-tog span{display:none;font-size:12.5px;font-weight:600;writing-mode:vertical-rl;letter-spacing:.02em}
+ .tbl-b.player.stc{grid-template-columns:minmax(0,1fr) 34px}.tbl-b.master.stc{grid-template-columns:34px minmax(0,1fr)}
+ .st-tog.col{top:0;bottom:0;transform:none;width:34px;height:auto;flex-direction:column;justify-content:flex-start;padding-top:14px;gap:10px;border-radius:0!important;border-top:0;border-bottom:0;box-shadow:none;background:var(--panel);color:var(--ink)}
+ .st-tog.col:hover{background:var(--panel2)}.st-tog.col span{display:inline}
+ .tbl-b[data-side=right]>.st-tog.col{right:0}.tbl-b[data-side=left]>.st-tog.col{left:0}
+ .stpanel{padding-top:16px}
+}
+#mapC.mover{cursor:move}
 </style>
 <script>if(window.top===window&&!/claude|anthropic/.test(location.host)){[['link',{rel:'manifest',href:'manifest.webmanifest'}],['link',{rel:'apple-touch-icon',href:'img/icon-180.png'}],['meta',{name:'theme-color',content:'#0d0912'}],['meta',{name:'apple-mobile-web-app-capable',content:'yes'}],['meta',{name:'mobile-web-app-capable',content:'yes'}],['meta',{name:'apple-mobile-web-app-title',content:'Inkmind'}],['meta',{name:'apple-mobile-web-app-status-bar-style',content:'black-translucent'}]].forEach(([t,a])=>{const e=document.createElement(t);for(const k in a)e.setAttribute(k,a[k]);document.head.appendChild(e)})}</script>
 </head>
@@ -2783,7 +2808,7 @@ MR.maps=()=>{const g=T.game,ids=Object.keys(T.maps).sort((a,b)=>String(T.maps[a]
   ${m?`<div class="medit"><div class="mtools">${tools}</div>
    <div class="mcol"><div class="stamps" id="mStamps" style="${T.tool==='stamp'?'':'display:none'}">${STAMPS.map(e=>`<button class="${T.stamp===e?'on':''}" data-act="mStamp" data-e="${e}">${e}</button>`).join('')}${(g.stamps||[]).map(st=>`<button class="${T.stamp==='img:'+st.id?'on':''}" data-act="mStamp" data-e="img:${st.id}" title="${esc(st.name)}"><img src="${esc(st.src)}" alt=""></button>`).join('')}${S.assets?`<button data-act="stampUp" title="Enviar objetos próprios">⬆</button>`:''}</div>
    <div class="mapscroll ${m.style==='dark'?'darkbg':''}" id="mapScroll"><div class="mapstack"><canvas id="mapC" class="${T.tool==='hand'?'hand':''}"></canvas><canvas id="tokC" class="tokc"></canvas></div></div>
-   <p class="small muted mapHint">${m.fogOn?'Névoa ligada: áreas escurecidas estão ocultas dos jogadores — use 🔦 Revelar. ':''}Sala: arraste para desenhar · paredes aparecem sozinhas · ✋ Mover arrasta tokens e navega.</p></div></div>`
+   <p class="small muted mapHint">${m.fogOn?'Névoa ligada: áreas escurecidas estão ocultas dos jogadores — use 🔦 Revelar. ':''}Sala: arraste para desenhar · paredes aparecem sozinhas · ✋ Navegar arrasta tokens e o mapa · ✥ Mover muda objetos e textos de lugar.</p></div></div>`
   :`<div class="empty"><div class="big">Nenhum mapa ainda</div><p>Desenhe masmorras no traço clássico ou regiões pintadas com florestas, montanhas e vilas.</p><button class="btn primary" data-act="mNew">${I('plus')} Criar primeiro mapa</button></div>`}</div>`;
  if(m){const sel=$('#mSel');if(sel)sel.onchange=e=>{saveMapD.flush();T.edit=cl(T.maps[e.target.value]);T.undo=[];MR.maps()};
   $('#mStyle').onchange=e=>{pushUndo(m);m.style=e.target.value;mapDirty();MR.maps()};
@@ -5713,6 +5738,46 @@ async function svMigrate(){if(!T.gid||T._svMig===T.gid||!T._mapsSeen||!T.secret|
  return r}}
 {const _ctSV=closeTable;closeTable=function(){try{publishView.flush()}catch{}try{if(T._secDirty){T._secDirty=false;secretSave.flush()}}catch{}T._gmSub=null;T.gmReady=false;T.gmMaps=null;T._svMig=null;T._mapsSeen=false;T._pendChars=null;return _ctSV.apply(this,arguments)}}
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&T.gid){try{publishView.flush()}catch{}try{if(T._secDirty){T._secDirty=false;secretSave.flush()}}catch{}}});
+
+
+/* ============ v26: painel de status retrátil e ajustável · ferramenta Mover no editor de mapa ============ */
+const STW_KEY='ink-stw',STC_KEY='ink-stc';
+const stGet=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:v}catch{return d}};
+const stSet=(k,v)=>{try{localStorage.setItem(k,v)}catch{}};
+const stDesk=()=>matchMedia('(min-width:861px)').matches;
+function stApply(){const b=$('#tBody');if(!b||!$('#tPanel'))return;const side=T.mode==='player'?'right':'left';
+ const w=clamp(+stGet(STW_KEY+'-'+side,side==='right'?300:310)||300,220,560),col=stGet(STC_KEY+'-'+side,'0')==='1';
+ b.style.setProperty('--stw',w+'px');b.classList.toggle('stc',col);b.dataset.side=side;
+ let h=b.querySelector(':scope>.st-grip');if(!h){b.insertAdjacentHTML('beforeend',`<div class="st-grip" title="Arraste para ajustar a largura · duplo clique volta ao padrão"></div><button class="st-tog" data-act="stToggle"></button>`);h=b.querySelector(':scope>.st-grip');stGrip(h)}
+ const t=b.querySelector(':scope>.st-tog');t.innerHTML=col?(side==='right'?'‹':'›')+'<span>📊 Status da mesa</span>':(side==='right'?'›':'‹');t.title=col?'Mostrar o painel de status':'Recolher o painel de status';t.classList.toggle('col',col)}
+function stGrip(h){h.addEventListener('pointerdown',e=>{if(!stDesk())return;e.preventDefault();const b=$('#tBody'),side=b.dataset.side,r=b.getBoundingClientRect();try{h.setPointerCapture(e.pointerId)}catch{}b.classList.add('st-drag');
+  const mv=ev=>{const w=clamp(Math.round(side==='right'?r.right-ev.clientX:ev.clientX-r.left),220,560);b.style.setProperty('--stw',w+'px');stSet(STW_KEY+'-'+side,w)};
+  const up=()=>{h.removeEventListener('pointermove',mv);h.removeEventListener('pointerup',up);h.removeEventListener('pointercancel',up);b.classList.remove('st-drag');try{if(T.view==='play'||T.mtab==='maps')redrawEditor()}catch{}};
+  h.addEventListener('pointermove',mv);h.addEventListener('pointerup',up);h.addEventListener('pointercancel',up)});
+ h.addEventListener('dblclick',()=>{const b=$('#tBody'),side=b.dataset.side;stSet(STW_KEY+'-'+side,side==='right'?300:310);stApply()})}
+ACT.stToggle=()=>{const b=$('#tBody');if(!b)return;const side=b.dataset.side||'right',k=STC_KEY+'-'+side;stSet(k,stGet(k,'0')==='1'?'0':'1');stApply();try{if(T.mode==='master'&&T.mtab==='maps')redrawEditor()}catch{}};
+{const _rts=renderTableShell;renderTableShell=function(){const r=_rts.apply(this,arguments);try{if(T.view!=='play')stApply()}catch(e){console.warn(e)}return r}}
+
+/* ---- Mover objetos, textos, início e saques no editor de mapa ---- */
+{const i=MTOOLS.findIndex(t=>t[0]==='hand');if(i>=0)MTOOLS[i]=['hand','✋','Navegar'];const j=MTOOLS.findIndex(t=>t[0]==='stamp');if(j>=0&&!MTOOLS.some(t=>t[0]==='move'))MTOOLS.splice(j,0,['move','✥','Mover'])}
+function mvHit(m,x,y){
+ const ob=[...(m.objs||[])].reverse().find(o=>o.x===x&&o.y===y);if(ob)return{k:'obj',it:ob};
+ const lt=(m.loot||[]).find(o=>o.x===x&&o.y===y);if(lt)return{k:'loot',it:lt};
+ if(m.spawn&&m.spawn.x===x&&m.spawn.y===y)return{k:'spawn',it:m.spawn};
+ const lb=[...(m.labels||[])].reverse().find(l=>l.y===y&&Math.abs(x-l.x)<=Math.max(0,Math.round(String(l.t||'').length*.15)));if(lb)return{k:'label',it:lb};
+ return null}
+{const _ed=editorDown;editorDown=function(m,x,y){if(T.tool!=='move')return _ed.apply(this,arguments);
+ const h=mvHit(m,x,y);if(!h){T.mv=null;toast('Clique e arraste um objeto, texto, ⭐ início ou saque para mudar de lugar.');return}
+ pushUndo(m);T.mv={...h,ox:x-h.it.x,oy:y-h.it.y,x0:h.it.x,y0:h.it.y,moved:false}}}
+{const _em=editorMove;editorMove=function(m,x,y){if(T.tool!=='move')return _em.apply(this,arguments);const v=T.mv;if(!v)return;
+ const nx=clamp(x-v.ox,0,m.w-1),ny=clamp(y-v.oy,0,m.h-1);if(nx===v.it.x&&ny===v.it.y)return;v.it.x=nx;v.it.y=ny;v.moved=true}}
+{const _eu=editorUp;editorUp=function(m){if(T.tool!=='move')return _eu.apply(this,arguments);const v=T.mv;T.mv=null;if(!v)return;
+ if(v.moved){if(v.k==='obj')m.objs=m.objs.filter(o=>o===v.it||!(o.x===v.it.x&&o.y===v.it.y));mapDirty();return}
+ T.undo.pop();if(v.k==='label')mvEditLabel(m,v.it)}}
+async function mvEditLabel(m,l){const r=await modal({title:'🔤 Texto no mapa',body:`<label class="f">Texto</label><input id="mlT" maxlength="40" value="${esc(l.t||'')}">`,onMount:ov=>{const i=$('#mlT',ov);i.focus();i.select()},
+  actions:[{label:'Apagar',value:'del'},{label:'Cancelar'},{label:'Salvar',cls:'primary',onClick:ov=>({t:$('#mlT',ov).value.trim()})}]});
+ if(!r)return;pushUndo(m);if(r==='del'||!r.t)m.labels=m.labels.filter(x=>x!==l);else l.t=r.t.slice(0,40);mapDirty();redrawEditor()}
+{const _mt=ACT.mTool;ACT.mTool=function(el){const r=_mt.apply(this,arguments);const c=$('#mapC');if(c)c.classList.toggle('mover',T.tool==='move');if(T.tool==='move')toast('Mover: arraste objetos, textos, ⭐ início ou saques. Clique num texto para editar.');return r}}
 
 /* ============ início ============ */
 window.addEventListener('beforeunload',()=>{try{flushChapter()}catch{}});

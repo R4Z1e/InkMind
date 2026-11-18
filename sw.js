@@ -2,7 +2,7 @@
    - /_blob/<id>: imagens enviadas, do cache ou do Firestore (via a página aberta)
    - app instalável: index.html pela rede primeiro (cai no cache sem internet); arquivos do app no cache, atualizando em segundo plano */
 const CACHE = 'ink-blobs-v1';
-const APP = 'ink-app-v25';
+const APP = 'ink-app-v26';
 const SHELL = ['./', 'index.html', 'inkmind-fb.js', 'manifest.webmanifest', 'img/icon-192.png', 'img/icon-512.png', 'img/wordmark.webp', 'img/logo.webp', 'img/banner.webp', 'img/mark.webp', 'img/wm-word.webp'];
 
 self.addEventListener('install', e => {
