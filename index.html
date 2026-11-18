@@ -1238,7 +1238,7 @@ ACT.pMenu=async el=>{const p=S.projects.find(x=>x.id===el.dataset.id);if(!p)retu
  p.shelf=f;saveShelfProject(p);renderHome();toast(f?'Movido para “'+f+'”':'Removido da pasta')};
 async function loadMesas(){
  const box=$('#mesas');if(!box||S.backend!=='cloud')return;
- try{const snap=await withTimeout(S.db.collection('games').get(),15000);let mine=[];try{const ms=await S.db.doc('seats/'+S.uid).get();if(ms.exists)mine=ms.data().gids||[]}catch{}
+ try{const snap=await withTimeout(myGamesSnap(),15000);let mine=[];try{const ms=await S.db.doc('seats/'+S.uid).get();if(ms.exists)mine=ms.data().gids||[]}catch{}
   const gs=snap.docs.map(d=>d.data()).filter(g=>g&&g.kind==='game'&&(g.masterId===S.uid||mine.includes(g.id)));if(!$('#mesas'))return;
   const ps=S.user&&S.user.profiles?await S.user.profiles(gs.map(g=>g.masterId).filter(Boolean)):{};
   $('#mesas').innerHTML=`<section class="mesas"><div class="vh"><div class="grow"><h2>Minhas mesas</h2><p>Campanhas que você mestra ou em que já entrou. Para achar outras, use 🔎 Explorar.</p></div></div>
@@ -2264,7 +2264,7 @@ async function runShared(path){
  const q=SQ[path];q.run=true;setStatus('saving');
  while(q.op){const op=q.op;q.op=null;const r=S.db.doc(path);
   try{if(op.set)await r.set(op.set);else if(op.patch)await r.update(op.patch);else if(op.del)await r.delete()}
-  catch(e){console.warn('mesa',path,e);toast(e&&e.code==='invalid_argument'?'A mesa recusou essa alteração (sem permissão ou dado grande demais). Jogadores precisam de acesso de Colaborador.':e&&e.code==='resource_exhausted'?'Muitas alterações seguidas — aguarde um instante.':'Não foi possível salvar na mesa agora.','err');setStatus('err');q.run=false;return}}
+  catch(e){console.warn('mesa',path,e);toast(e&&e.code==='invalid_argument'?'A mesa recusou essa alteração (sem permissão ou dado grande demais). '+(FBAVAIL()?'':'Jogadores precisam de acesso de Colaborador.'):e&&e.code==='resource_exhausted'?'Muitas alterações seguidas — aguarde um instante.':'Não foi possível salvar na mesa agora.','err');setStatus('err');q.run=false;return}}
  q.run=false;if(!Object.values(SQ).some(x=>x.run))setStatus('ok');
 }
 function seatPatch(u,patch){const s=T.seats.find(x=>x.uid===u);if(s)Object.assign(s,deepMerge(s,patch));sharedWrite('seats/'+u,{patch:{g:{[T.gid]:patch}}})}
@@ -2277,7 +2277,7 @@ async function openTable(gid,opts={}){
  closeTable();
  Object.assign(T,{gid,entered:!!opts.from,playerOnly:false,tplTab:'fields',from:opts.from||null,game:null,maps:{},seats:[],mode:'player',tab:'sheet',mtab:'tpl',unsub:[],loaded:false,edit:null,undo:[],rect:null,dragTok:null,tplJ:'',shownMap:null,bgCache:{},view:'tabs',seenRolls:new Set(),seedS:false,seedG:false,lastTrans:null,sessAt:undefined,doorSeen:{},doorSeeded:false,transBusy:false,localDoor:0,hSeen:new Set(),hSeeded:false,qSeen:null,reqWatch:null,pendSeen:null,deathTk:null,hpPrev:{}});
  S.P=null;document.body.classList.remove('focus');
- $('#app').innerHTML=`<div class="tbl"><header class="tbl-h"><button class="btn ghost sm" data-act="tBack">${I('back')}<span class="hide-m">${opts.from?'Voltar ao projeto':'Estante'}</span></button><b class="tt" id="tTitle">Mesa de jogo</b><span class="mpill" id="tMaster" style="display:none"></span><span class="sp"></span><span id="tSessBtn"></span><div class="seg modesw" id="tMode"></div><span class="status hide-m" id="status"></span><button class="btn sm ghost" data-act="cmdk" title="Buscar ferramenta (Ctrl+K)">${I('search')}</button><button class="btn sm show-m" data-act="tStatus">${I('users')}</button></header><nav class="subtabs" id="tSub"></nav><div id="tBody" class="tbl-b"><div class="empty"><div class="spin" style="margin:0 auto 12px"></div>Conectando à mesa…</div></div><div class="scrim" id="tScrim" data-act="tStatus"></div></div>`;
+ $('#app').innerHTML=`<div class="tbl"><header class="tbl-h"><button class="btn ghost sm" data-act="tBack">${I('back')}<span class="hide-m">${opts.from?'Voltar ao projeto':'Estante'}</span></button><b class="tt" id="tTitle">Mesa de jogo</b><span class="mpill" id="tMaster" style="display:none"></span><span class="sp"></span><button class="btn sm" data-act="tInvite" title="Convidar jogadores (link e código)">👥<span class="hide-m"> Convidar</span></button><span id="tSessBtn"></span><div class="seg modesw" id="tMode"></div><span class="status hide-m" id="status"></span><button class="btn sm ghost" data-act="cmdk" title="Buscar ferramenta (Ctrl+K)">${I('search')}</button><button class="btn sm show-m" data-act="tStatus">${I('users')}</button></header><nav class="subtabs" id="tSub"></nav><div id="tBody" class="tbl-b"><div class="empty"><div class="spin" style="margin:0 auto 12px"></div>Conectando à mesa…</div></div><div class="scrim" id="tScrim" data-act="tStatus"></div></div>`;
  const ref=S.db.doc('games/'+gid);
  try{const snap=await withTimeout(ref.get(),15000);
   if(!snap.exists){
@@ -2337,7 +2337,7 @@ async function renderPanel(){
  const barRow=(who,v,npc)=>bars.map((f,i)=>{const b=fieldVal(f,v||{}),pct=b.max?clamp(b.cur/b.max*100,0,100):0;return `<div class="sb"><span class="lbl" title="${esc(f.label)}">${esc(f.label)}</span><div class="sbar c${i%5}" ${master?`data-act="tBarSet" data-uid="${who}" data-f="${f.id}" ${npc?'data-npc="1"':''} style="cursor:pointer"`:''}><i style="width:${pct}%"></i><em>${b.cur} / ${b.max}</em></div>${master?`<button class="mini" data-act="tBar" data-uid="${who}" data-f="${f.id}" data-d="-1" ${npc?'data-npc="1"':''}>−</button><button class="mini" data-act="tBar" data-uid="${who}" data-f="${f.id}" data-d="1" ${npc?'data-npc="1"':''}>+</button>`:''}</div>`}).join('');
  const npcs=master?(T.game.chars||[]).filter(c=>c.token&&c.token.m&&c.token.m===T.game.activeMap):[];
  el.innerHTML=`<div class="row"><h4>${master?'Controle de status':'Status da sessão'}</h4><span class="sp"></span><span class="pill">${T.seats.length} jogador(es)</span><button class="btn sm ghost show-m" data-act="tStatus">×</button></div>
-  ${T.seats.length?'':`<p class="muted small" style="margin-top:10px">${master?'Nenhum jogador entrou ainda. Compartilhe este app com eles como <b>Colaboradores</b> — a mesa aparece na estante deles.':'Ninguém na mesa ainda.'}</p>`}
+  ${T.seats.length?'':`<p class="muted small" style="margin-top:10px">${master?(FBAVAIL()?'Nenhum jogador entrou ainda. <a href="#" data-act="tInvite">👥 Convide os jogadores</a> — mande o link pelo WhatsApp ou passe o código da mesa.':'Nenhum jogador entrou ainda. Compartilhe este app com eles como <b>Colaboradores</b> — a mesa aparece na estante deles.'):'Ninguém na mesa ainda.'}</p>`}
   ${T.seats.map(s=>`<div class="pc ${s.uid===S.uid?'me':''}"><div class="pc-h">${avatarHTML(s)}<div class="grow" style="min-width:0"><b>${S.room?`<span class="odot ${playerOnline(s.uid)?'on':''}" title="${playerOnline(s.uid)?'Conectado':'Fora da mesa'}"></span>`:''}${esc(s.name||'Sem nome')}</b><small>${esc((ps[s.uid]&&ps[s.uid].name)||'Jogador')}${s.uid===S.uid?' · você':''}</small></div>${master?`<button class="btn sm ghost" data-act="tPcMenu" data-uid="${s.uid}" title="Ações">⋯</button>`:''}</div>
    ${barRow(s.uid,s.values,false)}
    <div class="conds">${(s.cond||[]).map((c,i)=>`<span class="cond">${esc(c)}${master?`<button data-act="tCondRm" data-uid="${s.uid}" data-i="${i}" title="Remover">×</button>`:''}</span>`).join('')}${master?`<button class="cond add" data-act="tCondAdd" data-uid="${s.uid}">+ condição</button>`:''}</div></div>`).join('')}
@@ -2917,7 +2917,7 @@ async function joinTable(o){
  try{const ref=S.db.doc('seats/'+S.uid),snap=await ref.get();
   if(snap.exists){const d=snap.data();await ref.update({gids:[...new Set([...(d.gids||[]),T.gid])],g:{[T.gid]:entry}})}else await ref.set({uid:S.uid,gids:[T.gid],g:{[T.gid]:entry}});
   T.seats=T.seats.filter(s=>s.uid!==S.uid).concat([{...entry,uid:S.uid,gids:[T.gid]}]);if(T.game.lookFree!==false){T.tab='look';renderSubtabs()}renderTab();renderPanel();toast(T.game.lookFree!==false?'Bem-vindo! Agora monte a aparência do seu personagem.':'Bem-vindo à mesa!')}
- catch(e){console.warn(e);toast(e&&e.code==='invalid_argument'?'Sem permissão para entrar. Peça acesso de Colaborador ao mestre.':'Não foi possível entrar agora.','err')}finally{b.done()}
+ catch(e){console.warn(e);toast(e&&e.code==='invalid_argument'?(FBAVAIL()?'Sem permissão para entrar nesta mesa. Peça um novo convite ao mestre.':'Sem permissão para entrar. Peça acesso de Colaborador ao mestre.'):'Não foi possível entrar agora.','err')}finally{b.done()}
 }
 PR.sheet=()=>{const s=mySeat();if(!s)return renderJoin();
  $('#tMain').innerHTML=`<div class="tpad"><div class="sheet-top">${avatarHTML(s,'tok big')}<div class="grow"><label class="f">Nome do personagem</label><input id="psName" value="${esc(s.name||'')}" maxlength="60"></div><button class="btn sm" data-act="tTab" data-t="look">🎭 Aparência</button></div>
@@ -3925,7 +3925,7 @@ function tutBody(st){const L=LRN(),c=L.cls&&TUTC[L.cls];
  case 6:return `<p>Sua <b>Vida</b> diminui com o dano. Em <b>0</b> você fica <b>caído</b> e não age até alguém curar você.</p><ul><li>🧪 <b>Poção de cura</b>: recupera 2d4+2 (usar é a sua ação do turno).</li><li>🌿 <b>Magias de cura</b>: o clérigo cura aliados próximos.</li><li>☕ <b>Descanso curto</b>: recupera metade. 🏕 <b>Descanso longo</b>: recupera tudo.</li></ul><p>Magias e golpes especiais gastam <b>Mana</b>, que também volta com descanso. Guarde o melhor para a hora certa!</p>`;
  case 7:return `<p>O segredo de uma boa mesa é <b>falar como seu personagem</b> e <b>jogar em equipe</b>.</p><div class="tut-scene"><b>🎭 Mestre:</b> “O guarda cruza os braços: ‘Ninguém entra no castelo depois do pôr do sol.’ O que vocês fazem?”<br><b>🗡️ Ladino:</b> “Enquanto ele fala com a maga, eu procuro outra entrada pelos fundos.”<br><b>🔮 Maga:</b> “Eu sorrio e digo: ‘Trouxemos um recado urgente do capitão.’” <i>(teste de Carisma)</i><br><b>⚔️ Guerreiro:</b> “Fico atrás, com a mão no cabo da espada, só para garantir.”</div><ul><li>Diga sua <b>intenção</b>; o mestre diz se precisa rolar.</li><li>Deixe todos terem seu momento.</li><li>Ideias criativas são bem-vindas — o RPG não tem botão certo.</li></ul>`;
  case 8:return `<div class="quiz">${QUIZ.map((q,i)=>{const a=L.quiz[i];return `<div class="qz"><b>${i+1}. ${q[0]}</b><div class="qopts">${q[1].map((o,j)=>`<button class="btn sm ${a!=null?(j===q[2]?'right':a===j?'wrong':''):''}" data-qz="${i}:${j}" ${a!=null?'disabled':''}>${esc(o)}</button>`).join('')}</div>${a!=null?`<p class="small ${a===q[2]?'okt':'badt'}">${a===q[2]?'✔ Certo! ':'✘ Quase. '}${q[3]}</p>`:''}</div>`}).join('')}</div>`;
- case 9:return `<p class="lead">Pronto para a primeira mesa! 🎉</p><ol><li>Peça ao mestre para compartilhar o app com você como <b>Colaborador</b>. A mesa aparece na sua Estante, em <b>Minhas mesas</b>.</li><li>Abra a mesa e toque em <b>Conectar como jogador</b> (o mestre precisa estar conectado).</li><li>Escolha classe e raça, dê um nome e monte a <b>aparência</b>.</li><li>Quando o mestre iniciar a sessão, a <b>Tela de jogo</b> abre sozinha: na sua vez, arraste seu token e use ⚔️ Atacar, ✨ Habilidade, 🧪 Item e ⏭ Encerrar turno.</li><li>Converse pelo <b>📜 Registro</b> e consulte as <b>Regras básicas</b> quando quiser.</li></ol><p>Quer ser mestre? Veja a aba <b>🎭 Ser mestre</b> — começa pelo básico e vai até criar campanhas inteiras.</p>`;
+ case 9:return `<p class="lead">Pronto para a primeira mesa! 🎉</p><ol><li>${FBAVAIL()?'Peça ao mestre o <b>convite da mesa</b> (link ou código). Abra o link, ou na Estante toque em <b>Entrar numa mesa</b> e cole o código. Depois ela fica na sua Estante, em <b>Minhas mesas</b>.':'Peça ao mestre para compartilhar o app com você como <b>Colaborador</b>. A mesa aparece na sua Estante, em <b>Minhas mesas</b>.'}</li><li>Abra a mesa e toque em <b>Conectar como jogador</b> (o mestre precisa estar conectado).</li><li>Escolha classe e raça, dê um nome e monte a <b>aparência</b>.</li><li>Quando o mestre iniciar a sessão, a <b>Tela de jogo</b> abre sozinha: na sua vez, arraste seu token e use ⚔️ Atacar, ✨ Habilidade, 🧪 Item e ⏭ Encerrar turno.</li><li>Converse pelo <b>📜 Registro</b> e consulte as <b>Regras básicas</b> quando quiser.</li></ol><p>Quer ser mestre? Veja a aba <b>🎭 Ser mestre</b> — começa pelo básico e vai até criar campanhas inteiras.</p>`;
  }}
 function tutHTML(){const L=LRN(),st=clamp(L.step,0,TUT_STEPS.length-1),pct=Math.round(st/(TUT_STEPS.length-1)*100);
  return `<div class="tut"><div class="tut-prog"><i style="width:${pct}%"></i></div><div class="tut-steps">${TUT_STEPS.map((t,i)=>`<button class="ts ${i===st?'on':''} ${i<st?'done':''}" data-tstep="${i}" title="${t}">${i<st?'✓':i+1}</button>`).join('')}</div>
@@ -5309,6 +5309,36 @@ const _gather16=gather;gather=async function(){const chs=await _gather16();const
 ACT.inkLogin=()=>{if(window.INK)INK.login();else location.reload()};
 ACT.inkLogout=async()=>{if(!FBM())return;if(await confirmDlg('Sair da sua conta neste aparelho? Seus projetos continuam salvos na nuvem.','Sair'))INK.logout()};
 {const _rh=renderHome;renderHome=function(...a){const r=_rh.apply(this,a);if(FBAVAIL()&&!FBM()&&!document.getElementById('inkLocal')){const h=document.querySelector('.hero');if(h)h.insertAdjacentHTML('afterend',`<div class="notice" id="inkLocal" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 16px"><span style="flex:1;min-width:200px">☁ Você está <b>sem conta</b>: os projetos ficam só neste navegador. Entre para salvar na nuvem, usar em qualquer aparelho e jogar na mesa ao vivo.</span><button class="btn primary sm" data-act="inkLogin">Entrar ou criar conta</button></div>`)}return r}}
+
+
+/* ============ v20: mesa online — convite por link/código, minhas mesas ============ */
+async function myGamesSnap(){
+ const out=new Map();
+ try{(await S.db.collection('games').where('masterId','==',S.uid).get()).docs.forEach(d=>out.set(d.id,d))}catch(e){console.warn(e)}
+ try{const ms=await S.db.doc('seats/'+S.uid).get();const gids=ms.exists?(ms.data().gids||[]):[];
+  await Promise.all(gids.filter(g=>!out.has(g)).map(async g=>{try{const d=await S.db.doc('games/'+g).get();if(d.exists)out.set(g,d)}catch{}}))}catch{}
+ return {docs:[...out.values()]};
+}
+const SITE_URL=()=>/^https?:$/.test(location.protocol)&&!/claude\.ai|claudeusercontent|anthropic/.test(location.host)?location.origin+location.pathname:'https://r4z1e.github.io/InkMind/';
+const inviteLink=gid=>SITE_URL()+'?mesa='+encodeURIComponent(gid);
+function parseMesa(t){t=String(t||'').trim();if(!t)return'';const m=/[?&#]mesa=([\w-]+)/.exec(t);if(m)return m[1];const c=/^[\w-]{6,40}$/.exec(t);return c?c[0]:''}
+ACT.tInvite=async()=>{const gid=T.gid;if(!gid)return;const link=inviteLink(gid),title=(T.game&&T.game.title)||'Mesa';
+ const copy=async(txt,what)=>{try{await navigator.clipboard.writeText(txt);toast(what+' copiado!')}catch{prompt('Copie:',txt)}};
+ await modal({title:'👥 Convidar jogadores',body:`<p style="margin-top:0">Mande o <b>link</b> para os jogadores (WhatsApp, Discord…). Ao abrir, eles entram na conta do Inkmind e caem direto nesta mesa.</p>
+  <label class="f">Link da mesa</label><div class="row" style="gap:6px"><input id="ivL" value="${esc(link)}" readonly style="flex:1;min-width:0"><button class="btn" id="ivLc">Copiar</button></div>
+  <label class="f" style="margin-top:12px">Ou passe o código</label><div class="row" style="gap:6px"><input id="ivC" value="${esc(gid)}" readonly style="flex:1;min-width:0;font:600 16px ui-monospace,monospace;letter-spacing:.06em"><button class="btn" id="ivCc">Copiar</button></div>
+  <p class="small muted" style="margin:8px 0 0">Com o código: na Estante, toque em <b>Entrar numa mesa</b> e cole. Depois de entrar uma vez, a mesa fica em <b>Minhas mesas</b>.</p>`,
+  onMount:ov=>{$('#ivLc',ov).onclick=()=>copy(link,'Link');$('#ivCc',ov).onclick=()=>copy(gid,'Código');$('#ivL',ov).onfocus=e=>e.target.select();$('#ivC',ov).onfocus=e=>e.target.select()},
+  actions:[...(navigator.share?[{label:'Compartilhar…',value:'share'}]:[]),{label:'Pronto',cls:'primary'}]}).then(v=>{if(v==='share')navigator.share({title:'Inkmind — '+title,text:`Vem jogar “${title}” comigo no Inkmind! 🎲`,url:link}).catch(()=>{})})};
+ACT.joinByCode=async()=>{if(S.backend!=='cloud'||!S.uid){openTable('x');return}
+ const t=await ask('Entrar numa mesa','Cole o link ou o código que o mestre mandou');if(!t)return;const gid=parseMesa(t);
+ if(!gid){toast('Não reconheci esse link ou código.','err');return}
+ const b=busy('Procurando a mesa…');let ok=false;try{const d=await S.db.doc('games/'+gid).get();ok=d.exists}catch(e){console.warn(e)}finally{b.done()}
+ if(!ok){toast('Mesa não encontrada. Confira o código com o mestre.','err');return}openTable(gid)};
+{const _lm=loadMesas;loadMesas=async function(...a){const r=await _lm.apply(this,a);const vh=document.querySelector('#mesas .vh');if(vh&&!vh.querySelector('[data-act=joinByCode]'))vh.insertAdjacentHTML('beforeend','<button class="btn" data-act="joinByCode">🎲 Entrar numa mesa</button>');return r}}
+{const _rh2=renderHome;renderHome=function(...a){const r=_rh2.apply(this,a);
+ if(!S._mesaParam){S._mesaParam=1;const g=parseMesa(location.search);if(g){try{history.replaceState(null,'',location.pathname)}catch{}setTimeout(async()=>{if(S.backend==='cloud'&&S.uid){let ok=false;try{ok=(await S.db.doc('games/'+g).get()).exists}catch{}if(!ok){toast('A mesa do convite não foi encontrada. Peça um novo link ao mestre.','err');return}}openTable(g)},300)}}
+ return r}}
 
 /* ============ início ============ */
 window.addEventListener('beforeunload',()=>{try{flushChapter()}catch{}});
