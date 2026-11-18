@@ -173,7 +173,7 @@ export function install(cfg, F) {
     'auth/wrong-password': 'E-mail ou senha incorretos.', 'auth/user-not-found': 'Não há conta com esse e-mail. Use “Criar conta”.',
     'auth/too-many-requests': 'Muitas tentativas. Espere alguns minutos e tente de novo.', 'auth/network-request-failed': 'Sem conexão com a internet.',
     'auth/popup-closed-by-user': 'A janela do Google foi fechada antes de terminar.', 'auth/unauthorized-domain': 'Este endereço ainda não foi autorizado no Firebase (Authentication → Configurações → Domínios autorizados).',
-    'auth/operation-not-allowed': 'Este tipo de login não está ativado no Firebase (Authentication → Método de login).', 'auth/popup-blocked': 'O navegador bloqueou a janela do Google. Permita pop-ups e tente de novo.'
+    'auth/operation-not-allowed': 'Este tipo de login não está ativado no Firebase (Authentication → Método de login).', 'auth/configuration-not-found': 'O login ainda não foi ativado no Firebase (Authentication → Começar → Método de login).', 'auth/admin-restricted-operation': 'Criar conta está desativado no Firebase (Authentication → Configurações → Ações do usuário).', 'auth/invalid-api-key': 'A chave do Firebase no app está incorreta.', 'auth/popup-blocked': 'O navegador bloqueou a janela do Google. Permita pop-ups e tente de novo.'
   };
   const msgOf = e => ERR[e && e.code] || ('Não foi possível entrar agora' + (e && e.code ? ' (' + e.code + ')' : '') + '.');
   function loginScreen() {
