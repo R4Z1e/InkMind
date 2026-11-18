@@ -54,7 +54,8 @@ class Ctx:
       er = await pg.locator('#ilEr').inner_text() if await pg.locator('#ilEr').count() else ''
       if 'Entrar' in er and await pg.locator('#ilIn').count(): await pg.click('#ilIn')
       await pg.wait_for_timeout(500)
-    await pg.wait_for_selector('.home', timeout=5000); return pg
+    info = await pg.evaluate("[location.href,(document.getElementById('ilEr')||{}).innerText||'',document.body.innerText.slice(0,200),!!window.INK&&!!INK.user]")
+    raise Fail(f'{name} não conseguiu entrar: {info}')
   def no_errors(self): check(not self.errs, 'sem erros de JavaScript' + ('' if not self.errs else ': ' + ' | '.join(self.errs[:3])))
 
 async def new_project(pg, kind, title):
