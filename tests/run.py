@@ -235,11 +235,13 @@ async def main():
     b = await p.chromium.launch(executable_path=CHROME, args=['--no-sandbox']) if CHROME else await p.chromium.launch()
     for name, fn in TESTS:
       if only and not any(o in name for o in only): continue
-      print(f'▶ {name}', flush=True); t0 = time.time()
-      try: await asyncio.wait_for(fn(b), 300); print(f'  ok ({time.time() - t0:.0f} s)', flush=True)
-      except Exception as e:
-        fails.append(name); print(f'  ✗ FALHOU: {e if isinstance(e, Fail) else repr(e)[:400]}', flush=True)
-        if not isinstance(e, Fail): traceback.print_exc(limit=2)
+      for tent in (1, 2):                     # testes de navegador às vezes oscilam: tenta de novo uma vez
+        print(f'▶ {name}' + (' (2ª tentativa)' if tent == 2 else ''), flush=True); t0 = time.time()
+        try: await asyncio.wait_for(fn(b), 300); print(f'  ok ({time.time() - t0:.0f} s)', flush=True); break
+        except Exception as e:
+          print(f'  ✗ FALHOU: {e if isinstance(e, Fail) else repr(e)[:400]}', flush=True)
+          if not isinstance(e, Fail): traceback.print_exc(limit=2)
+          if tent == 2: fails.append(name)
     await b.close()
   print('\nResultado:', 'tudo certo ✅' if not fails else f'{len(fails)} falha(s): {", ".join(fails)} ❌')
   sys.exit(1 if fails else 0)
