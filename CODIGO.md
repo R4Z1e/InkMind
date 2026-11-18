@@ -32,6 +32,7 @@ no Claude (versão artefato) ou no Firebase (versão do site, pelo `inkmind-fb.j
 | `js/21-coautoria.js` | Escrita a várias mãos e leitores beta; levar projetos do Claude para o site |
 | `js/22-economia.js` | Economia de leituras e gravações (plano grátis do Firebase) |
 | `js/23-celular-dados.js` | Rolador de dados do editor com dados animados; escolhas deslizantes no celular |
+| `js/24-livro-rpg.js` | Menus por tipo: livro sem Compêndio/menções; RPG com Publicar e Estilo em "Mais" |
 | `js/99-inicio.js` | Inicialização (sempre por último) |
 | `fb/src/` | Conexão com o Firebase (`shim.js`), Firebase falso para testes (`mockfb.js`) |
 | `firestore.rules` | Regras de segurança do banco |

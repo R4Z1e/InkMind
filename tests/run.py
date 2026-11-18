@@ -237,9 +237,20 @@ async def t_celular(b):
     check(w[0] <= w[1] and w[2], 'no celular a janela cabe na tela e os estilos deslizam para o lado')
     c.no_errors()
 
+async def t_menus(b):
+  async with Ctx(b) as c:
+    m = await c.user('autor', vp={'width': 390, 'height': 844}); vis = "[...document.querySelectorAll('#tabs button')].filter(b=>b.offsetParent).map(b=>b.innerText.trim())"
+    await new_project(m, 'book', 'Livro'); bar = await m.evaluate(vis)
+    check('Compêndio' not in bar and 'Mesa de jogo' not in bar, 'livro: sem Compêndio e sem Mesa de jogo')
+    await m.evaluate('ACT.home()'); await m.wait_for_timeout(400); await new_project(m, 'rpg', 'Campanha'); bar = await m.evaluate(vis)
+    check('Publicar' not in bar and 'Compêndio' in bar and 'Mesa de jogo' in bar, 'RPG: Publicar saiu da barra')
+    await m.click('.ik-more'); await m.wait_for_timeout(300)
+    check('Publicar' in await m.evaluate("[...document.querySelectorAll('.ik-pop .tx')].map(x=>x.innerText)"), 'RPG: Publicar continua em Mais')
+    c.no_errors()
+
 TESTS = [('modo_local', t_modo_local), ('conta_nuvem', t_conta_nuvem), ('economia', t_economia), ('mesa_visitante', t_mesa_visitante),
          ('combate', t_combate), ('mapa_secreto', t_mapa_secreto), ('coautoria', t_coautoria), ('moderacao_conta', t_moderacao_conta),
-         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular)]
+         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus)]
 
 async def main():
   only = sys.argv[1:]; fails = []

@@ -2,8 +2,8 @@
    - /_blob/<id>: imagens enviadas, do cache ou do Firestore (via a página aberta)
    - app instalável: index.html pela rede primeiro (cai no cache sem internet); arquivos do app no cache, atualizando em segundo plano */
 const CACHE = 'ink-blobs-v1';
-const APP = 'ink-app-v29';
-const SHELL = ['./', 'index.html', 'inkmind-fb.js', 'manifest.webmanifest', 'css/inkmind.css?v=29', 'js/01-base.js?v=29', 'js/02-estante.js?v=29', 'js/03-editor.js?v=29', 'js/04-mesa.js?v=29', 'js/05-mesa-extras.js?v=29', 'js/06-aparencia.js?v=29', 'js/07-mestre.js?v=29', 'js/08-tela-de-jogo.js?v=29', 'js/09-combate.js?v=29', 'js/10-aprender.js?v=29', 'js/11-mecanicas.js?v=29', 'js/12-backup.js?v=29', 'js/13-escrita-organizar.js?v=29', 'js/14-paginacao.js?v=29', 'js/15-menus.js?v=29', 'js/16-ferramentas-word.js?v=29', 'js/17-online.js?v=29', 'js/18-site-publico.js?v=29', 'js/19-mapa-secreto.js?v=29', 'js/20-painel-mover.js?v=29', 'js/21-coautoria.js?v=29', 'js/22-economia.js?v=29', 'js/23-celular-dados.js?v=29', 'js/99-inicio.js?v=29', 'img/icon-192.png', 'img/icon-512.png', 'img/wordmark.webp', 'img/logo.webp', 'img/banner.webp', 'img/mark.webp', 'img/wm-word.webp'];
+const APP = 'ink-app-v30';
+const SHELL = ['./', 'index.html', 'inkmind-fb.js', 'manifest.webmanifest', 'css/inkmind.css?v=30', 'js/01-base.js?v=30', 'js/02-estante.js?v=30', 'js/03-editor.js?v=30', 'js/04-mesa.js?v=30', 'js/05-mesa-extras.js?v=30', 'js/06-aparencia.js?v=30', 'js/07-mestre.js?v=30', 'js/08-tela-de-jogo.js?v=30', 'js/09-combate.js?v=30', 'js/10-aprender.js?v=30', 'js/11-mecanicas.js?v=30', 'js/12-backup.js?v=30', 'js/13-escrita-organizar.js?v=30', 'js/14-paginacao.js?v=30', 'js/15-menus.js?v=30', 'js/16-ferramentas-word.js?v=30', 'js/17-online.js?v=30', 'js/18-site-publico.js?v=30', 'js/19-mapa-secreto.js?v=30', 'js/20-painel-mover.js?v=30', 'js/21-coautoria.js?v=30', 'js/22-economia.js?v=30', 'js/23-celular-dados.js?v=30', 'js/24-livro-rpg.js?v=30', 'js/99-inicio.js?v=30', 'img/icon-192.png', 'img/icon-512.png', 'img/wordmark.webp', 'img/logo.webp', 'img/banner.webp', 'img/mark.webp', 'img/wm-word.webp'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();

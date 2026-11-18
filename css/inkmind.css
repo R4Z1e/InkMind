@@ -967,3 +967,6 @@ kbd{font:600 10.5px var(--ui,system-ui);border:1px solid var(--line);border-bott
 @keyframes dRoll{to{transform:rotate(360deg)}}
 .ov{grid-template-columns:minmax(0,1fr)}
 .dlg{max-width:100%}
+/* v30 — menus por tipo de projeto */
+.rail .ik-rh{display:none!important}
+@media (min-width:861px){.rail .ik-more.ik-more-d{display:flex!important}}
