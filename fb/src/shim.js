@@ -20,12 +20,13 @@ function dec(v) {
   }
   return v;
 }
+const DEL = Symbol.for('ink-del');
 const isPlain = v => v && typeof v === 'object' && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
 function flatten(obj, pre, out) { // update com mescla profunda (listas substituem) → caminhos de campo
   for (const k of Object.keys(obj)) {
     const v = obj[k]; if (v === undefined) continue;
     const p = [...pre, k];
-    if (isPlain(v) && Object.keys(v).length) flatten(v, p, out); else out.push([p, enc(v)]);
+    if (v === DEL) out.push([p, DEL]); else if (isPlain(v) && Object.keys(v).length) flatten(v, p, out); else out.push([p, enc(v)]);
   }
   return out;
 }
@@ -50,7 +51,7 @@ export function install(cfg, F) {
         patch = seatMark(path, patch, false);
         const pairs = flatten(patch, [], []);
         if (!pairs.length) return;
-        const args = []; for (const [p, v] of pairs) args.push(new F.FieldPath(...p), v);
+        const args = []; for (const [p, v] of pairs) args.push(new F.FieldPath(...p), v === DEL ? F.deleteField() : v);
         return F.updateDoc(ref, ...args);
       },
       async delete() { return F.deleteDoc(ref); },
@@ -245,7 +246,7 @@ export function install(cfg, F) {
     }
   };
   window.INK = {
-    mode: 'firebase',
+    mode: 'firebase', DEL,
     get user() { return state.user; },
     async logout() { try { await F.deleteDoc(F.doc(fs, 'presence/' + state.user.uid)); } catch {} try { sessionStorage.removeItem('ink-skip-login'); } catch {} await F.signOut(auth); location.reload(); },
     login() { try { sessionStorage.removeItem('ink-skip-login'); } catch {} location.reload(); },

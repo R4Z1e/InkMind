@@ -17,16 +17,54 @@ service cloud.firestore {
       allow write: if signedIn() && me() == uid;
     }
 
-    // Mesas de jogo: todos com conta leem; só o mestre altera
+    // Mesas de jogo
+    //  - pública: qualquer pessoa com conta lê e entra sozinha até o limite de jogadores
+    //  - particular: só o mestre e os jogadores aprovados leem; entrada só com aprovação do mestre
+    //  - mesas antigas (sem o campo access) continuam abertas como antes
+    function gameOf(gid) { return get(/databases/$(database)/documents/games/$(gid)).data; }
+    function canReadGame(g) {
+      return g.masterId == me() || g.get('access', 'legacy') != 'private' || g.get('players', {}).get(me(), false) == true;
+    }
+    function playersAfter() { return request.resource.data.get('players', {}); }
+    function playersBefore() { return resource.data.get('players', {}); }
+    function joinOrLeave() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players']) &&
+        playersAfter().diff(playersBefore()).affectedKeys().hasOnly([me()]) &&
+        (!(me() in playersAfter()) ||
+          (playersAfter()[me()] == true &&
+           playersAfter().size() <= resource.data.get('maxPlayers', 99) &&
+           resource.data.get('access', 'legacy') != 'private' &&
+           !(me() in resource.data.get('banned', {}))));
+    }
     match /games/{gid} {
-      allow read: if signedIn();
+      allow read: if signedIn() && (resource == null || canReadGame(resource.data));
       allow create: if signedIn() && request.resource.data.masterId == me();
-      allow update: if signedIn() && resource.data.masterId == me() && request.resource.data.masterId == me();
+      allow update: if signedIn() && (
+        (resource.data.masterId == me() && request.resource.data.masterId == me()) || joinOrLeave());
       allow delete: if signedIn() && resource.data.masterId == me();
       match /maps/{mid} {
-        allow read: if signedIn();
+        allow read: if signedIn() && canReadGame(gameOf(gid));
         allow write: if signedIn() && masterOf(gid);
       }
+      // Notas do mestre e revelações preparadas: só o mestre
+      match /secret/{doc} {
+        allow read, write: if signedIn() && masterOf(gid);
+      }
+      // Pedidos de entrada (mesa particular)
+      match /requests/{uid} {
+        allow read: if signedIn() && (me() == uid || masterOf(gid));
+        allow create: if signedIn() && me() == uid && request.resource.data.get('status', 'pending') == 'pending' &&
+          request.resource.data.keys().hasOnly(['name', 't', 'status']);
+        allow update: if signedIn() && masterOf(gid);
+        allow delete: if signedIn() && (me() == uid || masterOf(gid));
+      }
+    }
+
+    // Convites: o código leva até a mesa; só o mestre cria ou apaga
+    match /invites/{code} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && masterOf(request.resource.data.gid);
+      allow delete: if signedIn() && masterOf(resource.data.gid);
     }
 
     // Fichas dos jogadores: cada um mexe na sua; o mestre mexe só na parte da mesa dele (campo g.<mesa>)

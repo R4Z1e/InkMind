@@ -9,6 +9,34 @@ function validate(v, inArr) {
 function strip(v) { if (Array.isArray(v)) return v.map(strip); if (v && typeof v === 'object') { const o = {}; for (const k in v) if (v[k] !== undefined) o[k] = strip(v[k]); return o; } return v; }
 function deepMerge(a, b) { const o = { ...(a || {}) }; for (const k in b) { o[k] = (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && o[k] && typeof o[k] === 'object' && !Array.isArray(o[k])) ? deepMerge(o[k], b[k]) : b[k]; } return o; }
 const listeners = new Set();
+/* regras simplificadas (espelham firestore.rules) para os testes pegarem acessos indevidos */
+const uidNow = () => { const u = JSON.parse(sessionStorage.getItem('mockauth') || 'null'); return u && u.uid; };
+function canReadGame(g, me) { return !!g && (g.masterId === me || (g.access || 'legacy') !== 'private' || !!(g.players || {})[me]); }
+function mockRule(op, path, next, prev) {
+  const me = uidNow(), seg = path.split('/');
+  const deny = () => { throw fsErr('permission-denied', 'Missing or insufficient permissions. (' + op + ' ' + path + ')'); };
+  if (seg[0] === 'games') {
+    const g = read('games/' + seg[1]);
+    if (seg.length === 2) {
+      if (op === 'get') { if (g && !canReadGame(g, me)) deny(); return; }
+      if (op === 'create') { if (next.masterId !== me) deny(); return; }
+      if (op === 'update') {
+        if (prev.masterId === me) return;
+        const keys = new Set([...Object.keys(next), ...Object.keys(prev)].filter(k => JSON.stringify(next[k]) !== JSON.stringify(prev[k])));
+        if ([...keys].some(k => k !== 'players')) deny();
+        const a = next.players || {}, b = prev.players || {};
+        const changed = new Set([...Object.keys(a), ...Object.keys(b)].filter(k => a[k] !== b[k]));
+        if ([...changed].some(k => k !== me)) deny();
+        if (a[me]) { if (Object.keys(a).length > (prev.maxPlayers || 99)) deny(); if ((prev.access || 'legacy') === 'private') deny(); if ((prev.banned || {})[me]) deny(); }
+        return;
+      }
+    }
+    if (seg[2] === 'secret' && (!g || g.masterId !== me)) deny();
+    if (seg[2] === 'maps' && op === 'get' && g && !canReadGame(g, me)) deny();
+    if (seg[2] === 'requests') { if (op === 'get' && seg[3] !== me && g.masterId !== me) deny(); if (op === 'create' && seg[3] !== me) deny(); if (op === 'update' && g.masterId !== me) deny(); }
+  }
+  if (seg[0] === 'invites' && (op === 'create' || op === 'update')) { const g = read('games/' + next.gid); if (!g || g.masterId !== me) deny(); }
+}
 function emit(path) { for (const l of [...listeners]) if (l.match(path)) l.fire(); }
 addEventListener('storage', e => { if (e.key && e.key.startsWith(LSK)) emit(e.key.slice(LSK.length)); });
 const read = p => { const v = localStorage.getItem(LSK + p); return v ? JSON.parse(v) : null; };
@@ -23,6 +51,7 @@ function colDocs(q) {
 }
 export const F = {
   FieldPath,
+  deleteField: () => ({ __del: true }),
   initializeApp: cfg => ({ cfg }),
   getAuth: () => ({ currentUser: JSON.parse(sessionStorage.getItem('mockauth') || 'null') }),
   getFirestore: () => ({}),
@@ -40,21 +69,22 @@ export const F = {
   collection: (fs, path) => { if (path.split('/').length % 2 === 0) throw fsErr('invalid-argument', 'collection path must be odd: ' + path); return { type: 'q', path, wheres: [] }; },
   query: (q, ...ws) => ({ ...q, wheres: [...q.wheres, ...ws] }),
   where: (f, op, v) => ({ f, op, v }),
-  async getDoc(ref) { await 0; return snapOf(ref.path); },
-  async setDoc(ref, data, opts) { data = strip(data); validate(data); write(ref.path, opts && opts.merge ? deepMerge(read(ref.path), data) : clone(data)); },
+  async getDoc(ref) { await 0; mockRule('get', ref.path); return snapOf(ref.path); },
+  async setDoc(ref, data, opts) { data = strip(data); validate(data); mockRule(read(ref.path) ? 'update' : 'create', ref.path, opts && opts.merge ? deepMerge(read(ref.path), data) : data, read(ref.path)); write(ref.path, opts && opts.merge ? deepMerge(read(ref.path), data) : clone(data)); },
   async updateDoc(ref, ...args) {
-    const cur = read(ref.path); if (!cur) throw fsErr('not-found', 'No document to update: ' + ref.path);
+    const cur = read(ref.path); const before = clone(cur); if (!cur) throw fsErr('not-found', 'No document to update: ' + ref.path);
     for (let i = 0; i < args.length; i += 2) {
       const fp = args[i], v = args[i + 1]; if (!(fp instanceof FieldPath)) throw fsErr('invalid-argument', 'expected FieldPath');
       if (v !== undefined) validate(v, false);
       let o = cur; const s = fp.s; for (let j = 0; j < s.length - 1; j++) { if (!o[s[j]] || typeof o[s[j]] !== 'object' || Array.isArray(o[s[j]])) o[s[j]] = {}; o = o[s[j]]; }
-      if (v === undefined) continue; o[s[s.length - 1]] = clone(v);
+      if (v === undefined) continue; if (v && v.__del) { delete o[s[s.length - 1]]; continue; } o[s[s.length - 1]] = clone(v);
     }
-    write(ref.path, cur);
+    mockRule('update', ref.path, cur, before); write(ref.path, cur);
   },
   async deleteDoc(ref) { write(ref.path, null); },
-  async getDocs(q) { await 0; const docs = colDocs(q); return { docs, size: docs.length, empty: !docs.length }; },
+  async getDocs(q) { await 0; const docs = colDocs(q).filter(d => { if (q.path === 'games') return canReadGame(d.data(), uidNow()); return true; }); if (q.path === 'games' && !(q.wheres||[]).length) {}  return { docs, size: docs.length, empty: !docs.length }; },
   onSnapshot(t, cb, err) {
+    try { if (t.type === 'doc') mockRule('get', t.path); else { const m = /^games\/([^/]+)\/(maps|requests|secret)$/.exec(t.path); if (m) { const g = read('games/' + m[1]); if (g && (m[2] === 'maps' ? !canReadGame(g, uidNow()) : g.masterId !== uidNow())) throw fsErr('permission-denied', 'no read ' + t.path); } } } catch (e) { setTimeout(() => err && err(e), 0); return () => {}; }
     const l = t.type === 'doc'
       ? { match: p => p === t.path, fire: () => { try { cb(snapOf(t.path)); } catch (e) { console.error(e); } } }
       : { match: p => parent(p) === t.path, fire: () => { try { const docs = colDocs(t); cb({ docs, size: docs.length, empty: !docs.length }); } catch (e) { err ? err(e) : console.error(e); } } };
