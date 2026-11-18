@@ -19,6 +19,7 @@ function mockRule(op, path, next, prev) {
   const deny = () => { throw fsErr('permission-denied', 'Missing or insufficient permissions. (' + op + ' ' + path + ')'); };
   if (anon && op !== 'get' && (seg[0] === 'data' || seg[0] === 'pubs' || seg[0] === 'blobs' || seg[0] === 'invites' || (seg[0] === 'games' && (op === 'create' && seg.length === 2 || seg[2] === 'requests' && op === 'create')))) deny();
   if (anon && op === 'get' && seg[0] === 'data') deny();
+  if (seg[0] === 'data' && seg[1] === 'users' && seg[2] !== me) deny();
   if (seg[0] === 'games') {
     const g = read('games/' + seg[1]);
     if (seg.length === 2) {

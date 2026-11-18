@@ -2,8 +2,9 @@
    (claude.use('db' | 'user' | 'assets' | 'room' …)) em cima do Firebase Auth + Firestore.
    Imagens ficam no Firestore (coleção blobs) e são servidas em /_blob/<id> por um service worker. */
 
-const BLOB_MAX = 700 * 1024;           // bytes do arquivo (base64 ≈ +33% → cabe no limite de 1 MiB do Firestore)
-const PRES_TTL = 75 * 1000;
+const BLOB_MAX = 700 * 1024;
+const BLOB_TARGET = 380 * 1024;         // imagens maiores são comprimidas até ~380 KB (economiza espaço e leituras)           // bytes do arquivo (base64 ≈ +33% → cabe no limite de 1 MiB do Firestore)
+const PRES_TTL = 200 * 1000;           // presença vale ~3 min (batida a cada 90 s)
 
 /* ---------- codificação: Firestore não aceita listas dentro de listas ---------- */
 function enc(v) {
@@ -32,7 +33,22 @@ function flatten(obj, pre, out) { // update com mescla profunda (listas substitu
 }
 const rid = (n = 20) => { const a = new Uint8Array(n), c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; crypto.getRandomValues(a); return [...a].map(x => c[x % 62]).join(''); };
 
-export function install(cfg, F) {
+export function install(cfg, F0) {
+  /* medidor de consumo (leituras/gravações do Firestore feitas por este aparelho) */
+  const USE_K = 'ink-use-' + new Date().toISOString().slice(0, 10);
+  const use = (() => { try { return JSON.parse(localStorage.getItem(USE_K)) || { r: 0, w: 0, d: 0 }; } catch { return { r: 0, w: 0, d: 0 }; } })();
+  const sess = { r: 0, w: 0, d: 0, since: Date.now() };
+  let useT = null;
+  const bump = (k, n = 1) => { if (!n) return; use[k] += n; sess[k] += n; clearTimeout(useT); useT = setTimeout(() => { try { localStorage.setItem(USE_K, JSON.stringify(use)); } catch {} }, 2000); };
+  const srvN = s => (s && s.metadata && (s.metadata.fromCache || s.metadata.hasPendingWrites)) ? 0 : 1;
+  const F = Object.assign({}, F0, {
+    getDoc: async (...a) => { const s = await F0.getDoc(...a); bump('r', srvN(s)); return s; },
+    getDocs: async (...a) => { const s = await F0.getDocs(...a); bump('r', srvN(s) ? Math.max(1, s.docs.length) : 0); return s; },
+    setDoc: (...a) => { bump('w'); return F0.setDoc(...a); },
+    updateDoc: (...a) => { bump('w'); return F0.updateDoc(...a); },
+    deleteDoc: (...a) => { bump('d'); return F0.deleteDoc(...a); },
+    onSnapshot: (t, cb, err) => F0.onSnapshot(t, s => { try { if (srvN(s)) { if (typeof s.docChanges === 'function') bump('r', Math.max(1, s.docChanges().length)); else bump('r', 1); } } catch {} cb(s); }, err),
+  });
   const app = F.initializeApp(cfg);
   const auth = F.getAuth(app);
   const fs = F.getFirestore(app);
@@ -101,11 +117,11 @@ export function install(cfg, F) {
   const toB64 = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(b); });
   const fromB64 = (b64, type) => { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Blob([u], { type }); };
   async function shrink(blob) {
-    if (blob.size <= BLOB_MAX) return blob;
+    if (blob.size <= BLOB_TARGET) return blob;
     if (!/^image\/(png|jpe?g|webp|gif|bmp)/.test(blob.type)) throw Object.assign(new Error('Arquivo grande demais (máx. 700 KB).'), { code: 'invalid_argument' });
     const bmp = await createImageBitmap(blob);
     let dim = Math.min(2000, Math.max(bmp.width, bmp.height)), q = .85, out = blob;
-    for (let i = 0; i < 8 && out.size > BLOB_MAX; i++) {
+    for (let i = 0; i < 9 && out.size > BLOB_TARGET; i++) {
       const k = dim / Math.max(bmp.width, bmp.height), c = document.createElement('canvas');
       c.width = Math.max(1, Math.round(bmp.width * k)); c.height = Math.max(1, Math.round(bmp.height * k));
       c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
@@ -152,19 +168,27 @@ export function install(cfg, F) {
   let presTimer = null, presVal = null;
   const room = {
     async presence(p) {
-      if (!state.user) return; presVal = p || {};
-      const write = () => F.setDoc(F.doc(fs, 'presence/' + state.user.uid), { by: state.user.uid, presence: enc(presVal), t: Date.now() }).catch(() => {});
-      await write(); clearInterval(presTimer); presTimer = setInterval(write, 30000);
+      // só quem está numa mesa avisa que está online (uma batida a cada 90 s); fora da mesa não grava nada
+      if (!state.user) return; presVal = p || {}; const g = presVal.gid || null; clearInterval(presTimer);
+      const ref = F.doc(fs, 'presence/' + state.user.uid);
+      if (!g) { if (presGid) { try { await F.deleteDoc(ref); } catch {} } presGid = null; resub(); return; }
+      const write = () => F.setDoc(ref, { by: state.user.uid, gid: g, presence: enc(presVal), t: Date.now() }).catch(() => {});
+      await write(); presTimer = setInterval(write, 90000);
+      if (g !== presGid) { presGid = g; resub(); }
     },
-    onPeers(cb, err) {
-      let docs = [];
-      const emit = () => { const now = Date.now(); cb({ peers: docs.filter(d => now - (d.t || 0) < PRES_TTL).map(d => ({ by: d.by, presence: dec(d.presence || {}) })) }); };
-      const q = F.query(F.collection(fs, 'presence'), F.where('t', '>', Date.now() - 10 * 60 * 1000));
-      const un = F.onSnapshot(q, s => { docs = s.docs.map(d => d.data()); emit(); }, e => err && err(e));
-      const iv = setInterval(emit, 20000);
-      return () => { un(); clearInterval(iv); };
-    }
+    // escuta só as mesas que interessam: a mesa aberta + as campanhas visíveis em Explorar
+    onPeers(cb, err) { peerCb = cb; peerErr = err; resub(); const iv = setInterval(emitP, 30000); return () => { peerCb = null; if (peerUn) peerUn(); peerUn = null; clearInterval(iv); }; },
+    watch(gids) { const n = [...new Set((gids || []).filter(Boolean))].sort().slice(0, 25); if (n.join() === [...watchG].join()) return; watchG = new Set(n); resub(); }
   };
+  let presGid = null, watchG = new Set(), peerCb = null, peerErr = null, peerUn = null, peerDocs = [], subKey = '';
+  function emitP() { if (!peerCb) return; const now = Date.now(); peerCb({ peers: peerDocs.filter(d => now - (d.t || 0) < PRES_TTL).map(d => ({ by: d.by, presence: dec(d.presence || {}) })) }); }
+  function resub() {
+    const g = [...new Set([presGid, ...watchG].filter(Boolean))].sort().slice(0, 30), key = g.join();
+    if (key === subKey && (peerUn || !g.length)) return; subKey = key;
+    if (peerUn) { peerUn(); peerUn = null; } peerDocs = [];
+    if (!peerCb) return; if (!g.length) { emitP(); return; }
+    peerUn = F.onSnapshot(F.query(F.collection(fs, 'presence'), F.where('gid', 'in', g)), s => { peerDocs = s.docs.map(d => d.data()); emitP(); }, e => peerErr && peerErr(e));
+  }
   addEventListener('pagehide', () => { if (state.user) try { F.deleteDoc(F.doc(fs, 'presence/' + state.user.uid)); } catch {} });
 
   /* ---------- tela de login ---------- */
@@ -319,6 +343,7 @@ ${up ? '<div class="ft"><a id="ilBack">Voltar sem criar conta</a><br><span>“J�
     }
   };
   window.INK = {
+    get usage() { return { today: { ...use }, session: { ...sess } }; },
     mode: 'firebase', DEL,
     get user() { return state.user; },
     get isAnon() { return !!(state.user && state.user.isAnonymous); },

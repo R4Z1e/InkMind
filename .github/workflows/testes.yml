@@ -1,0 +1,30 @@
+name: Testes do app
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Gerar o Firebase falso (fbmock.js)
+        run: npx --yes esbuild@0.24.0 fb/src/entry-mock.js --bundle --format=esm --target=es2020 --outfile=fbmock.js
+      - name: Instalar o navegador de testes
+        run: |
+          pip install playwright
+          python -m playwright install --with-deps chromium
+      - name: Abrir o site localmente
+        run: |
+          nohup python -m http.server 8765 > /tmp/http.log 2>&1 &
+          sleep 2
+      - name: Rodar os testes
+        run: python tests/run.py

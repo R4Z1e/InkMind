@@ -1,2 +1,6 @@
 # Google App Engine generated folder
 appengine-generated/
+
+# gerado para os testes
+fbmock.js
+__pycache__/

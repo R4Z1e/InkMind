@@ -2,8 +2,8 @@
    - /_blob/<id>: imagens enviadas, do cache ou do Firestore (via a página aberta)
    - app instalável: index.html pela rede primeiro (cai no cache sem internet); arquivos do app no cache, atualizando em segundo plano */
 const CACHE = 'ink-blobs-v1';
-const APP = 'ink-app-v27';
-const SHELL = ['./', 'index.html', 'inkmind-fb.js', 'manifest.webmanifest', 'img/icon-192.png', 'img/icon-512.png', 'img/wordmark.webp', 'img/logo.webp', 'img/banner.webp', 'img/mark.webp', 'img/wm-word.webp'];
+const APP = 'ink-app-v28';
+const SHELL = ['./', 'index.html', 'inkmind-fb.js', 'manifest.webmanifest', 'css/inkmind.css?v=28', 'js/01-base.js?v=28', 'js/02-estante.js?v=28', 'js/03-editor.js?v=28', 'js/04-mesa.js?v=28', 'js/05-mesa-extras.js?v=28', 'js/06-aparencia.js?v=28', 'js/07-mestre.js?v=28', 'js/08-tela-de-jogo.js?v=28', 'js/09-combate.js?v=28', 'js/10-aprender.js?v=28', 'js/11-mecanicas.js?v=28', 'js/12-backup.js?v=28', 'js/13-escrita-organizar.js?v=28', 'js/14-paginacao.js?v=28', 'js/15-menus.js?v=28', 'js/16-ferramentas-word.js?v=28', 'js/17-online.js?v=28', 'js/18-site-publico.js?v=28', 'js/19-mapa-secreto.js?v=28', 'js/20-painel-mover.js?v=28', 'js/21-coautoria.js?v=28', 'js/22-economia.js?v=28', 'js/99-inicio.js?v=28', 'img/icon-192.png', 'img/icon-512.png', 'img/wordmark.webp', 'img/logo.webp', 'img/banner.webp', 'img/mark.webp', 'img/wm-word.webp'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -54,7 +54,7 @@ self.addEventListener('fetch', e => {
   const m = /\/_blob\/([A-Za-z0-9_-]+)$/.exec(u.pathname);
   if (m) { e.respondWith(serveBlob(e, m[1])); return; }
   if (req.mode === 'navigate' || /\/(index\.html)?$/.test(u.pathname)) { e.respondWith(networkFirst(req)); return; }
-  if (/\.js$/.test(u.pathname)) { e.respondWith(networkFirst(req)); return; }   // código: sempre a versão nova quando há internet
+  if (/\.(js|css)$/.test(u.pathname)) { e.respondWith(networkFirst(req)); return; }   // código: sempre a versão nova quando há internet
   if (/\.(webp|png|svg|webmanifest|woff2?)$/.test(u.pathname)) e.respondWith(staleWhileRevalidate(e, req));
 });
 self.addEventListener('notificationclick', e => {

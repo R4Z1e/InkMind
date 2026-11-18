@@ -2,7 +2,7 @@
 
 Escreva • Publique • Jogue • Viva suas histórias
 
-**Versão atual:** v27 — 18/11/2026 (escrita a várias mãos: coautores e leitores beta; levar projetos do Claude para o site)
+**Versão atual:** v28 — 18/11/2026 (código separado em arquivos — veja CODIGO.md; testes automáticos; economia para o plano grátis; moderação ativa)
 
 App para escrever livros e criar/jogar RPG de mesa: editor com ferramentas do Word, compêndio do mundo, visualização de impressão com sumário automático, exportação (PDF, Word, EPUB, HTML, Markdown, TXT) e mesa de RPG com mapas, fichas e dados.
 

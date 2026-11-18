@@ -8,7 +8,7 @@ service cloud.firestore {
     function fullUser() { return signedIn() && !isAnon(); }
     function me() { return request.auth.uid; }
     // Administradores (moderação): coloque aqui o e-mail verificado da conta de quem modera
-    function admins() { return []; }
+    function admins() { return ['inkmind17@gmail.com']; }
     function isAdmin() { return fullUser() && request.auth.token.email_verified == true && request.auth.token.email.lower() in admins(); }
     function masterOf(gid) { return exists(/databases/$(database)/documents/games/$(gid)) && get(/databases/$(database)/documents/games/$(gid)).data.masterId == me(); }
 
