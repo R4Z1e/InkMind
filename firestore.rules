@@ -7,6 +7,9 @@ service cloud.firestore {
     function isAnon() { return request.auth.token.firebase.sign_in_provider == 'anonymous'; }
     function fullUser() { return signedIn() && !isAnon(); }
     function me() { return request.auth.uid; }
+    // Administradores (moderação): coloque aqui o e-mail verificado da conta de quem modera
+    function admins() { return []; }
+    function isAdmin() { return fullUser() && request.auth.token.email_verified == true && request.auth.token.email.lower() in admins(); }
     function masterOf(gid) { return exists(/databases/$(database)/documents/games/$(gid)) && get(/databases/$(database)/documents/games/$(gid)).data.masterId == me(); }
 
     // Projetos, capítulos, comentários, versões e preferências: só o dono
@@ -44,7 +47,8 @@ service cloud.firestore {
       allow read: if signedIn() && (resource == null || canReadGame(resource.data));
       allow create: if fullUser() && request.resource.data.masterId == me();
       allow update: if signedIn() && (
-        (resource.data.masterId == me() && request.resource.data.masterId == me()) || joinOrLeave());
+        (resource.data.masterId == me() && request.resource.data.masterId == me()) || joinOrLeave() ||
+        (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['access']) && request.resource.data.access == 'private'));
       allow delete: if signedIn() && resource.data.masterId == me();
       match /maps/{mid} {
         allow read: if signedIn() && canReadGame(gameOf(gid));
@@ -104,6 +108,21 @@ service cloud.firestore {
         allow read: if true;
         allow write: if fullUser() && me() == owner;
       }
+    }
+
+    // Denúncias: qualquer pessoa conectada envia; só a moderação lê e resolve
+    match /reports/{rid} {
+      allow create: if signedIn() && request.resource.data.by == me() && request.resource.data.status == 'open' &&
+        request.resource.data.keys().hasOnly(['by', 'byName', 'target', 'reason', 'text', 't', 'status']) &&
+        request.resource.data.reason is string && request.resource.data.reason.size() < 20 &&
+        request.resource.data.get('text', '').size() <= 1500 && request.resource.data.target is map;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Conteúdo ocultado pela moderação: todos leem (para filtrar Explorar); só a moderação mexe
+    match /hidden/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // Imagens enviadas: leitura pública (endereços impossíveis de adivinhar); só o dono cria/apaga

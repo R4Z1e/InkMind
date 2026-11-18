@@ -174,6 +174,7 @@ export function install(cfg, F) {
     'auth/wrong-password': 'E-mail ou senha incorretos.', 'auth/user-not-found': 'Não há conta com esse e-mail. Use “Criar conta”.',
     'auth/too-many-requests': 'Muitas tentativas. Espere alguns minutos e tente de novo.', 'auth/network-request-failed': 'Sem conexão com a internet.',
     'auth/popup-closed-by-user': 'A janela do Google foi fechada antes de terminar.', 'auth/unauthorized-domain': 'Este endereço ainda não foi autorizado no Firebase (Authentication → Configurações → Domínios autorizados).',
+    'auth/requires-recent-login': 'Por segurança, entre de novo na conta e repita.', 'ink/need-password': 'Digite sua senha para confirmar.',
     'auth/operation-not-allowed': 'Este tipo de login não está ativado no Firebase (Authentication → Método de login).', 'auth/credential-already-in-use': 'Essa conta já existe. Use “Entrar”.', 'ink/anon-off': 'O modo visitante ainda não foi ativado no Firebase (Authentication → Método de login → Anônimo).', 'auth/provider-already-linked': 'Esta conta já está ligada.', 'auth/configuration-not-found': 'O login ainda não foi ativado no Firebase (Authentication → Começar → Método de login).', 'auth/admin-restricted-operation': 'Criar conta está desativado no Firebase (Authentication → Configurações → Ações do usuário).', 'auth/invalid-api-key': 'A chave do Firebase no app está incorreta.', 'auth/popup-blocked': 'O navegador bloqueou a janela do Google. Permita pop-ups e tente de novo.'
   };
   const msgOf = e => ERR[e && e.code] || ('Não foi possível entrar agora' + (e && e.code ? ' (' + e.code + ')' : '') + '.');
@@ -213,10 +214,12 @@ ${up ? '<div class="ft"><a id="ilBack">Voltar sem criar conta</a><br><span>“J�
 <div class="vis" id="ilVis"><b>🎲 Só quero jogar</b><small>Entre como <b style="display:inline">visitante</b> para jogar em mesas abertas. Visitantes não escrevem livros nem mestram.</small>
 <div id="ilVisF" style="display:none"><label for="ilNick">Seu apelido na mesa</label><input id="ilNick" maxlength="30" placeholder="ex.: Lia"></div>
 <button class="b o" id="ilAn">Entrar como visitante</button></div>`}
+<div class="ft" style="margin-top:12px;font-size:11.5px">Ao continuar, você concorda com os <a href="termos.html" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</div>
 </div>`;
       document.body.appendChild(ov);
       const $ = q => ov.querySelector(q), er = $('#ilEr');
       const busy = on => ov.querySelectorAll('button').forEach(b => b.disabled = on);
+      try { if (sessionStorage.getItem('ink-deleted')) { sessionStorage.removeItem('ink-deleted'); er.className = 'er ok'; er.textContent = 'Sua conta e seus dados foram excluídos. Obrigado por ter usado o Inkmind.'; } } catch {}
       const done = u => { ov.remove(); resolve(u); };
       const run = async fn => { er.className = 'er'; er.textContent = ''; busy(true); try { const c = await fn(); if (c && c.user) done(c.user); } catch (e) { er.textContent = msgOf(e); } finally { busy(false); } };
       const em = () => $('#ilE').value.trim(), pw = () => $('#ilP').value;
@@ -241,6 +244,40 @@ ${up ? '<div class="ft"><a id="ilBack">Voltar sem criar conta</a><br><span>“J�
       $('#ilP').onkeydown = e => { if (e.key === 'Enter') (up ? $('#ilUp') : $('#ilIn')).click(); };
       setTimeout(() => $('#ilE').focus(), 50);
     });
+  }
+
+  /* ---------- excluir conta (LGPD) ---------- */
+  async function deleteAccount(opts = {}, step = () => {}) {
+    const u = auth.currentUser; if (!u) throw new Error('Sem conta conectada.');
+    const uid = u.uid, prov = u.isAnonymous ? 'anonymous' : ((u.providerData && u.providerData[0] && u.providerData[0].providerId) || 'password');
+    if (prov === 'password') { if (!opts.password) throw Object.assign(new Error('senha'), { code: 'ink/need-password' }); await F.reauthenticateWithCredential(u, F.EmailAuthProvider.credential(u.email, opts.password)); }
+    else if (prov === 'google.com') await F.reauthenticateWithPopup(u, new F.GoogleAuthProvider());
+    const del = async path => { try { await F.deleteDoc(F.doc(fs, path)); } catch (e) { console.warn('[inkmind] apagar', path, e); } };
+    const list = async path => { try { return (await F.getDocs(F.collection(fs, path))).docs.map(d => d.id); } catch { return []; } };
+    step('Apagando as mesas que você mestra…');
+    try {
+      for (const g of (await F.getDocs(F.query(F.collection(fs, 'games'), F.where('masterId', '==', uid)))).docs) {
+        const gid = g.id, gd = g.data() || {};
+        for (const m of await list(`games/${gid}/maps`)) await del(`games/${gid}/maps/${m}`);
+        for (const r of await list(`games/${gid}/requests`)) await del(`games/${gid}/requests/${r}`);
+        await del(`games/${gid}/secret/gm`); if (gd.code) await del('invites/' + gd.code); await del('games/' + gid);
+      }
+    } catch (e) { console.warn('[inkmind] mesas', e); }
+    step('Saindo das mesas e apagando fichas…');
+    try { const sd = await F.getDoc(F.doc(fs, 'seats/' + uid)); if (sd.exists()) for (const gid of (sd.data().gids || [])) { try { await F.updateDoc(F.doc(fs, 'games/' + gid), new F.FieldPath('players', uid), F.deleteField()); } catch {} } } catch {}
+    await del('seats/' + uid); await del('presence/' + uid);
+    step('Apagando publicações…');
+    for (const b of await list(`pubs/${uid}/books`)) { for (const c of await list(`pubs/${uid}/books/${b}/ch`)) await del(`pubs/${uid}/books/${b}/ch/${c}`); await del(`pubs/${uid}/books/${b}`); }
+    await del('pubs/' + uid);
+    step('Apagando imagens…');
+    try { for (const d of (await F.getDocs(F.query(F.collection(fs, 'blobs'), F.where('owner', '==', uid)))).docs) await del('blobs/' + d.id); } catch {}
+    step('Apagando livros e campanhas…');
+    for (const k of await list(`data/users/${uid}`)) await del(`data/users/${uid}/${k}`);
+    await del('profiles/' + uid);
+    step('Apagando a conta…');
+    try { for (const k of Object.keys(localStorage)) if (k.startsWith('escritas:')) localStorage.removeItem(k); await caches.delete('ink-blobs-v1'); } catch {}
+    try { sessionStorage.setItem('ink-deleted', '1'); } catch {}
+    try { await F.deleteUser(u); } catch (e) { try { sessionStorage.removeItem('ink-deleted'); } catch {} throw e; }
   }
 
   /* ---------- inicialização ---------- */
@@ -272,6 +309,9 @@ ${up ? '<div class="ft"><a id="ilBack">Voltar sem criar conta</a><br><span>“J�
     mode: 'firebase', DEL,
     get user() { return state.user; },
     get isAnon() { return !!(state.user && state.user.isAnonymous); },
+    get provider() { const u = state.user; return !u ? null : u.isAnonymous ? 'anonymous' : ((u.providerData && u.providerData[0] && u.providerData[0].providerId) || 'password'); },
+    get emailVerified() { return !!(state.user && state.user.emailVerified); },
+    deleteAccount, errMsg: msgOf,
     async logout() { try { await F.deleteDoc(F.doc(fs, 'presence/' + state.user.uid)); } catch {} try { sessionStorage.removeItem('ink-skip-login'); } catch {} await F.signOut(auth); location.reload(); },
     async login() { if (state.user && state.user.isAnonymous) { const u = await loginScreen({ upgrade: true }); if (u) location.reload(); return; } location.reload(); },
     async renameMe(name) { if (!state.user) return; await F.updateProfile(state.user, { displayName: name }); await F.setDoc(F.doc(fs, 'profiles/' + state.user.uid), { name }, { merge: true }); },

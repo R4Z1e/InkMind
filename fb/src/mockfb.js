@@ -13,6 +13,7 @@ const listeners = new Set();
 const uidNow = () => { const u = JSON.parse(sessionStorage.getItem('mockauth') || 'null'); return u && u.uid; };
 const anonNow = () => { const u = JSON.parse(sessionStorage.getItem('mockauth') || 'null'); return !!(u && u.isAnonymous); };
 function canReadGame(g, me) { return !!g && (g.masterId === me || (g.access || 'legacy') !== 'private' || !!(g.players || {})[me]); }
+function isAdm() { const u = JSON.parse(sessionStorage.getItem('mockauth') || 'null'); return !!(u && u.email && u.emailVerified && !u.isAnonymous && (window.MOCK_ADMINS || []).includes(u.email.toLowerCase())); }
 function mockRule(op, path, next, prev) {
   const me = uidNow(), seg = path.split('/'), anon = anonNow();
   const deny = () => { throw fsErr('permission-denied', 'Missing or insufficient permissions. (' + op + ' ' + path + ')'); };
@@ -25,6 +26,7 @@ function mockRule(op, path, next, prev) {
       if (op === 'create') { if (next.masterId !== me) deny(); return; }
       if (op === 'update') {
         if (prev.masterId === me) return;
+        { const ks = [...new Set([...Object.keys(next), ...Object.keys(prev)])].filter(k => JSON.stringify(next[k]) !== JSON.stringify(prev[k])); if (isAdm() && ks.length === 1 && ks[0] === 'access' && next.access === 'private') return; }
         const keys = new Set([...Object.keys(next), ...Object.keys(prev)].filter(k => JSON.stringify(next[k]) !== JSON.stringify(prev[k])));
         if ([...keys].some(k => k !== 'players')) deny();
         const a = next.players || {}, b = prev.players || {};
@@ -38,6 +40,8 @@ function mockRule(op, path, next, prev) {
     if (seg[2] === 'maps' && op === 'get' && g && !canReadGame(g, me)) deny();
     if (seg[2] === 'requests') { if (op === 'get' && seg[3] !== me && g.masterId !== me) deny(); if (op === 'create' && seg[3] !== me) deny(); if (op === 'update' && g.masterId !== me) deny(); }
   }
+  if (seg[0] === 'reports') { if (op === 'create') { if (!me || next.by !== me || next.status !== 'open') deny(); return; } if (!isAdm()) deny(); return; }
+  if (seg[0] === 'hidden' && op !== 'get' && !isAdm()) deny();
   if (seg[0] === 'invites' && (op === 'create' || op === 'update')) { const g = read('games/' + next.gid); if (!g || g.masterId !== me) deny(); }
 }
 function emit(path) { for (const l of [...listeners]) if (l.match(path)) l.fire(); }
@@ -61,13 +65,16 @@ export const F = {
   onAuthStateChanged(auth, cb) { let on = true; setTimeout(() => on && cb(auth.currentUser), 10); F._authCbs.add(cb); return () => { on = false; F._authCbs.delete(cb); }; },
   _authCbs: new Set(),
   _setUser(auth, u) { auth.currentUser = u; sessionStorage.setItem('mockauth', JSON.stringify(u)); F._authCbs.forEach(cb => cb(u)); },
-  async signInWithEmailAndPassword(auth, e, p) { const us = JSON.parse(localStorage.getItem('mockusers') || '{}'); if (!/@/.test(e)) throw fsErr('auth/invalid-email'); const u = us[e]; if (!u || u.pw !== p) throw fsErr('auth/invalid-credential'); const user = { uid: u.uid, email: e, displayName: u.displayName || null, photoURL: null, isAnonymous: false }; F._setUser(auth, user); return { user }; },
-  async createUserWithEmailAndPassword(auth, e, p) { const us = JSON.parse(localStorage.getItem('mockusers') || '{}'); if (!/@/.test(e)) throw fsErr('auth/invalid-email'); if ((p || '').length < 6) throw fsErr('auth/weak-password'); if (us[e]) throw fsErr('auth/email-already-in-use'); us[e] = { pw: p, uid: 'u_' + e.split('@')[0] }; localStorage.setItem('mockusers', JSON.stringify(us)); const user = { uid: us[e].uid, email: e, displayName: null, photoURL: null, isAnonymous: false }; F._setUser(auth, user); return { user }; },
-  async signInWithPopup(auth) { const user = { uid: 'u_google', email: 'google@gmail.com', displayName: 'Usuária Google', photoURL: null }; F._setUser(auth, user); return { user }; },
+  async signInWithEmailAndPassword(auth, e, p) { const us = JSON.parse(localStorage.getItem('mockusers') || '{}'); if (!/@/.test(e)) throw fsErr('auth/invalid-email'); const u = us[e]; if (!u || u.pw !== p) throw fsErr('auth/invalid-credential'); const user = { uid: u.uid, email: e, displayName: u.displayName || null, photoURL: null, isAnonymous: false, emailVerified: false, providerData: [{ providerId: 'password' }] }; F._setUser(auth, user); return { user }; },
+  async createUserWithEmailAndPassword(auth, e, p) { const us = JSON.parse(localStorage.getItem('mockusers') || '{}'); if (!/@/.test(e)) throw fsErr('auth/invalid-email'); if ((p || '').length < 6) throw fsErr('auth/weak-password'); if (us[e]) throw fsErr('auth/email-already-in-use'); us[e] = { pw: p, uid: 'u_' + e.split('@')[0] }; localStorage.setItem('mockusers', JSON.stringify(us)); const user = { uid: us[e].uid, email: e, displayName: null, photoURL: null, isAnonymous: false, emailVerified: false, providerData: [{ providerId: 'password' }] }; F._setUser(auth, user); return { user }; },
+  async signInWithPopup(auth) { const user = { uid: 'u_google', email: 'google@gmail.com', displayName: 'Usuária Google', photoURL: null, isAnonymous: false, emailVerified: true, providerData: [{ providerId: 'google.com' }] }; F._setUser(auth, user); return { user }; },
   GoogleAuthProvider: class {},
   async signInAnonymously(auth) { const n = Math.random().toString(36).slice(2, 8); const user = { uid: 'anon_' + n, email: null, displayName: null, photoURL: null, isAnonymous: true }; F._setUser(auth, user); return { user }; },
   EmailAuthProvider: { credential: (e, p) => ({ e, p }) },
   async linkWithCredential(u, cred) { const us = JSON.parse(localStorage.getItem('mockusers') || '{}'); if (us[cred.e]) throw fsErr('auth/email-already-in-use'); if ((cred.p || '').length < 6) throw fsErr('auth/weak-password'); us[cred.e] = { pw: cred.p, uid: u.uid, displayName: u.displayName }; localStorage.setItem('mockusers', JSON.stringify(us)); const user = { ...u, email: cred.e, isAnonymous: false }; const a = { currentUser: null }; F._setUser(a, user); return { user }; },
+  async deleteUser(u) { const us = JSON.parse(localStorage.getItem('mockusers') || '{}'); for (const k in us) if (us[k].uid === u.uid) delete us[k]; localStorage.setItem('mockusers', JSON.stringify(us)); F._setUser({}, null); },
+  async reauthenticateWithCredential(u, cred) { const us = JSON.parse(localStorage.getItem('mockusers') || '{}'); if (!us[cred.e] || us[cred.e].pw !== cred.p) throw fsErr('auth/invalid-credential'); return { user: u }; },
+  async reauthenticateWithPopup(u) { return { user: u }; },
   async linkWithPopup(u) { const user = { ...u, email: 'g_' + u.uid + '@gmail.com', isAnonymous: false }; F._setUser({}, user); return { user }; },
   async signOut(auth) { F._setUser(auth, null); },
   async sendPasswordResetEmail() {},
@@ -89,7 +96,7 @@ export const F = {
     mockRule('update', ref.path, cur, before); write(ref.path, cur);
   },
   async deleteDoc(ref) { write(ref.path, null); },
-  async getDocs(q) { await 0; const docs = colDocs(q).filter(d => { if (q.path === 'games') return canReadGame(d.data(), uidNow()); return true; }); if (q.path === 'games' && !(q.wheres||[]).length) {}  return { docs, size: docs.length, empty: !docs.length }; },
+  async getDocs(q) { await 0; const docs = colDocs(q).filter(d => { if (q.path === 'games') return canReadGame(d.data(), uidNow()); return true; }); if (q.path === 'reports' && !isAdm()) throw fsErr('permission-denied', 'Missing or insufficient permissions. (list reports)'); if (q.path === 'games' && !(q.wheres||[]).length) {}  return { docs, size: docs.length, empty: !docs.length }; },
   onSnapshot(t, cb, err) {
     try { if (t.type === 'doc') mockRule('get', t.path); else { const m = /^games\/([^/]+)\/(maps|requests|secret)$/.exec(t.path); if (m) { const g = read('games/' + m[1]); if (g && (m[2] === 'maps' ? !canReadGame(g, uidNow()) : g.masterId !== uidNow())) throw fsErr('permission-denied', 'no read ' + t.path); } } } catch (e) { setTimeout(() => err && err(e), 0); return () => {}; }
     const l = t.type === 'doc'
