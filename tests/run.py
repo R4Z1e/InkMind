@@ -241,16 +241,36 @@ async def t_menus(b):
   async with Ctx(b) as c:
     m = await c.user('autor', vp={'width': 390, 'height': 844}); vis = "[...document.querySelectorAll('#tabs button')].filter(b=>b.offsetParent).map(b=>b.innerText.trim())"
     await new_project(m, 'book', 'Livro'); bar = await m.evaluate(vis)
-    check('Compêndio' not in bar and 'Mesa de jogo' not in bar, 'livro: sem Compêndio e sem Mesa de jogo')
+    check(any(x.startswith('Wiki') for x in bar) and 'Mesa de jogo' not in bar, 'livro: Wiki na barra e sem Mesa de jogo')
     await m.evaluate('ACT.home()'); await m.wait_for_timeout(400); await new_project(m, 'rpg', 'Campanha'); bar = await m.evaluate(vis)
     check('Publicar' not in bar and 'Compêndio' in bar and 'Mesa de jogo' in bar, 'RPG: Publicar saiu da barra')
     await m.click('.ik-more'); await m.wait_for_timeout(300)
     check('Publicar' in await m.evaluate("[...document.querySelectorAll('.ik-pop .tx')].map(x=>x.innerText)"), 'RPG: Publicar continua em Mais')
     c.no_errors()
 
+async def t_revisor(b):
+  async with Ctx(b) as c:
+    m = await c.user('autor'); await new_project(m, 'book', 'Revisão')
+    check('Wiki e dicionário' in await m.evaluate("[...document.querySelectorAll('#tabs button')].map(b=>b.innerText).join('|')"), 'livro tem Wiki e dicionário')
+    txt = ['- Vamos embora. — disse ele.', 'Ela caminhava derrepente e e pensava... Fazem dois anos.', 'Deu o livro à ele. Houveram problemas com o mestre Arin.', 'Escrevi uma palvra e a sombraluz brilhou.']
+    html = ''.join(f'<p>{t}</p>' for t in txt)
+    await m.evaluate(f"(()=>{{$('#page').innerHTML={html!r};markDirty();S.P.codex.push({{id:'c1',cat:'Personagem',name:'Aryn',img:null,tags:'',desc:'',attrs:[]}});S.P.dict=[{{id:'d1',w:'sombraluz',def:'luz sem sombra'}}];saveProject()}})()")
+    await m.evaluate('ACT.rvOpen()'); await m.wait_for_selector('.rv-i', timeout=10000); await m.wait_for_timeout(500)
+    rules = await m.evaluate('RV.issues.map(x=>x.rule)')
+    check(all(r in rules for r in ['travessao', 'tagponto', 'derrepente', 'rep', 'retic', 'fazem', 'crasepron', 'houveram']), 'regras de gramática e diálogo encontradas')
+    await m.evaluate('ACT.rvDicts(),0'); await m.wait_for_selector('[data-rvdl="pt-BR"]'); await m.click('[data-rvdl="pt-BR"]'); await m.wait_for_timeout(5000)
+    if await m.locator('.ov').count(): await m.click('.dlg-f .btn.primary')
+    await m.wait_for_timeout(2500)
+    sp = await m.evaluate("RV.issues.filter(x=>x.cat==='sp').map(x=>x.word)")
+    check('palvra' in sp and 'sombraluz' not in sp and 'caminhava' not in sp, 'dicionário baixado acha o erro e aceita a palavra inventada')
+    check('Arin' in sp and await m.evaluate("RV.issues.find(x=>x.word==='Arin').sug[0]") == 'Aryn', 'nome parecido com o da wiki é apontado')
+    await m.wait_for_timeout(1200)
+    check(await m.evaluate("(RV.issues.find(x=>x.word==='palvra').sug||[])[0]") == 'palavra', 'primeira sugestão para “palvra” é “palavra”')
+    c.no_errors()
+
 TESTS = [('modo_local', t_modo_local), ('conta_nuvem', t_conta_nuvem), ('economia', t_economia), ('mesa_visitante', t_mesa_visitante),
          ('combate', t_combate), ('mapa_secreto', t_mapa_secreto), ('coautoria', t_coautoria), ('moderacao_conta', t_moderacao_conta),
-         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus)]
+         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor)]
 
 async def main():
   only = sys.argv[1:]; fails = []

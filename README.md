@@ -2,7 +2,7 @@
 
 Escreva • Publique • Jogue • Viva suas histórias
 
-**Versão atual:** v30 — 18/11/2026 (menus por tipo: livro sem Compêndio; RPG com Publicar em Mais)
+**Versão atual:** v31 — 18/11/2026 (Wiki do mundo + dicionário do escritor; revisor com dicionários baixáveis, gramática, diálogos e estilo para livros)
 
 App para escrever livros e criar/jogar RPG de mesa: editor com ferramentas do Word, compêndio do mundo, visualização de impressão com sumário automático, exportação (PDF, Word, EPUB, HTML, Markdown, TXT) e mesa de RPG com mapas, fichas e dados.
 

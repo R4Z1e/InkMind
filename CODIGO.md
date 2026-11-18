@@ -32,7 +32,11 @@ no Claude (versão artefato) ou no Firebase (versão do site, pelo `inkmind-fb.j
 | `js/21-coautoria.js` | Escrita a várias mãos e leitores beta; levar projetos do Claude para o site |
 | `js/22-economia.js` | Economia de leituras e gravações (plano grátis do Firebase) |
 | `js/23-celular-dados.js` | Rolador de dados do editor com dados animados; escolhas deslizantes no celular |
-| `js/24-livro-rpg.js` | Menus por tipo: livro sem Compêndio/menções; RPG com Publicar e Estilo em "Mais" |
+| `js/24-livro-rpg.js` | Menus por tipo: livro com Wiki e dicionário; RPG com Publicar e Estilo em "Mais" |
+| `js/25-dicionario.js` | Dicionário do escritor (palavras inventadas) dentro da Wiki/Compêndio; @ insere palavras |
+| `js/26-revisor.js` | Revisor do escritor: dicionários baixáveis, ortografia, gramática, diálogos e estilo |
+| `js/lib/spell-worker.js` | Leitor dos dicionários (Web Worker), gerado de `tools/spell-worker-src.js` |
+| `dict/` | Dicionários baixáveis (`*.trie.gz`) e suas licenças (`dict/LEIA-ME.md`) |
 | `js/99-inicio.js` | Inicialização (sempre por último) |
 | `fb/src/` | Conexão com o Firebase (`shim.js`), Firebase falso para testes (`mockfb.js`) |
 | `firestore.rules` | Regras de segurança do banco |
@@ -52,7 +56,7 @@ no Claude (versão artefato) ou no Firebase (versão do site, pelo `inkmind-fb.j
 
 Rodam sozinhos no GitHub (aba **Actions → Testes do app**) a cada envio. Cada cenário abre o app num navegador
 de verdade e confere o resultado: modo local, conta na nuvem, economia de gravações, mesa com visitante, combate,
-segredos do mapa, coautoria, moderação e exclusão de conta, levar projetos do Claude para o site, celular (janela cabe na tela, dados animados).
+segredos do mapa, coautoria, moderação e exclusão de conta, levar projetos do Claude para o site, celular (janela cabe na tela, dados animados), menus por tipo e revisor.
 
 No computador: veja as instruções no topo de `tests/run.py`.
 

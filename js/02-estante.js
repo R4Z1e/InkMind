@@ -66,7 +66,7 @@ function bindThemePicker(root){
 ACT.newProject=async el=>{
  const t=el.dataset.type||'book';
  const v=await modal({title:'Novo projeto',body:`
-  <div class="typepick"><label><input type="radio" name="tp" value="book" ${t==='book'?'checked':''}><span class="tt">📖 Livro</span><span class="small muted">Romance, conto, novela — com capítulos, planejamento e exportação para PDF, Word e EPUB.</span></label>
+  <div class="typepick"><label><input type="radio" name="tp" value="book" ${t==='book'?'checked':''}><span class="tt">📖 Livro</span><span class="small muted">Romance, conto, novela — com capítulos, wiki do mundo e dicionário do escritor.</span></label>
   <label><input type="radio" name="tp" value="rpg" ${t==='rpg'?'checked':''}><span class="tt">🎲 RPG</span><span class="small muted">Campanha, aventura ou sistema — com compêndio, fichas e dados.</span></label></div>
   <label class="f">Título</label><input id="np-t" placeholder="Ex.: As Crônicas de Vel'Thar" maxlength="120">
   <div class="row"><div class="grow"><label class="f">Autor(a)</label><input id="np-a" placeholder="Seu nome ou pseudônimo"></div>

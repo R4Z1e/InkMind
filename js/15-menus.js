@@ -95,7 +95,7 @@ const TBM={
   {i:I('scene'),t:'Quebra de cena',d:'Separador ✦ ✦ ✦ entre cenas',run:()=>ACT.insScene(fakeEl())},
   {i:I('box'),t:rpg?'Caixa de leitura em voz alta':'Caixa de destaque',d:rpg?'Texto que o mestre lê para o grupo':'Bloco em destaque no texto',run:()=>ACT.insBox(fakeEl())},
   rpg&&{i:I('tpl'),t:'Ficha do compêndio',d:'Monstro, NPC ou item no texto',run:()=>ACT.insStat(fakeEl())},
-  {i:'<b>@</b>',t:'Menção',d:'Ficha ou capítulo — ou digite @ no texto',run:()=>ACT.insMention(fakeEl()),hide:!(S.P&&S.P.type==='rpg')}]},
+  {i:'<b>@</b>',t:'Menção',d:'Ficha ou capítulo — ou digite @ no texto',run:()=>ACT.insMention(fakeEl())}]},
  rev:()=>{const n=(S.cmts&&S.cmts[S.cid]||[]).filter(c=>!c.res).length;return[
   {i:'💬',t:'Comentar trecho',d:'Selecione um trecho antes',run:()=>ACT.cmtAdd(fakeEl())},
   {i:'🗂',t:'Ver comentários'+(n?` (${n})`:''),d:'Abertos e resolvidos',run:()=>openNotesTab('cmts')},
