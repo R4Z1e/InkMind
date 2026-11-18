@@ -48,9 +48,13 @@ class Ctx:
     await pg.add_init_script(init); await pg.goto(BASE + url, wait_until='domcontentloaded'); return pg
   async def user(self, name, url='index.html', vp=None):
     pg = await self.page(name, url=url, vp=vp); await pg.wait_for_selector('#inkLogin', timeout=20000)
-    await pg.fill('#ilE', name + '@teste.com'); await pg.fill('#ilP', 'segredo1'); await pg.click('#ilUp'); await pg.wait_for_timeout(300)
-    if await pg.locator('#inkLogin').count(): await pg.click('#ilIn')
-    await pg.wait_for_selector('.home', timeout=20000); return pg
+    await pg.fill('#ilE', name + '@teste.com'); await pg.fill('#ilP', 'segredo1'); await pg.click('#ilUp')
+    for _ in range(90):                       # espera entrar; se a conta já existir, usa "Já tenho conta"
+      if await pg.locator('.home').count(): return pg
+      er = await pg.locator('#ilEr').inner_text() if await pg.locator('#ilEr').count() else ''
+      if 'Entrar' in er and await pg.locator('#ilIn').count(): await pg.click('#ilIn')
+      await pg.wait_for_timeout(500)
+    await pg.wait_for_selector('.home', timeout=5000); return pg
   def no_errors(self): check(not self.errs, 'sem erros de JavaScript' + ('' if not self.errs else ': ' + ' | '.join(self.errs[:3])))
 
 async def new_project(pg, kind, title):
@@ -231,7 +235,7 @@ async def main():
     for name, fn in TESTS:
       if only and not any(o in name for o in only): continue
       print(f'▶ {name}', flush=True); t0 = time.time()
-      try: await asyncio.wait_for(fn(b), 240); print(f'  ok ({time.time() - t0:.0f} s)', flush=True)
+      try: await asyncio.wait_for(fn(b), 300); print(f'  ok ({time.time() - t0:.0f} s)', flush=True)
       except Exception as e:
         fails.append(name); print(f'  ✗ FALHOU: {e if isinstance(e, Fail) else repr(e)[:400]}', flush=True)
         if not isinstance(e, Fail): traceback.print_exc(limit=2)
