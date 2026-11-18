@@ -78,12 +78,12 @@ export function install(cfg, F) {
   const db = { doc: docRef, collection: colRef };
 
   /* ---------- user ---------- */
-  const nameOf = u => (u && (u.displayName || (u.email || '').split('@')[0])) || 'Você';
+  const nameOf = u => (u && (u.displayName || (u.email || '').split('@')[0])) || (u && u.isAnonymous ? 'Visitante' : 'Você');
   const profCache = {};
   const user = {
     async id() { return state.user ? state.user.uid : null; },
-    async me() { return state.user ? { name: nameOf(state.user), email: state.user.email, photo: state.user.photoURL || null } : null; },
-    async canEdit() { return true; },
+    async me() { return state.user ? { name: nameOf(state.user), email: state.user.email, photo: state.user.photoURL || null, anon: !!state.user.isAnonymous } : null; },
+    async canEdit() { return !!state.user && !state.user.isAnonymous; },
     async can() { return true; },
     async profiles(uids) {
       const out = {}; const need = [...new Set(uids || [])].filter(Boolean);
@@ -174,10 +174,11 @@ export function install(cfg, F) {
     'auth/wrong-password': 'E-mail ou senha incorretos.', 'auth/user-not-found': 'Não há conta com esse e-mail. Use “Criar conta”.',
     'auth/too-many-requests': 'Muitas tentativas. Espere alguns minutos e tente de novo.', 'auth/network-request-failed': 'Sem conexão com a internet.',
     'auth/popup-closed-by-user': 'A janela do Google foi fechada antes de terminar.', 'auth/unauthorized-domain': 'Este endereço ainda não foi autorizado no Firebase (Authentication → Configurações → Domínios autorizados).',
-    'auth/operation-not-allowed': 'Este tipo de login não está ativado no Firebase (Authentication → Método de login).', 'auth/configuration-not-found': 'O login ainda não foi ativado no Firebase (Authentication → Começar → Método de login).', 'auth/admin-restricted-operation': 'Criar conta está desativado no Firebase (Authentication → Configurações → Ações do usuário).', 'auth/invalid-api-key': 'A chave do Firebase no app está incorreta.', 'auth/popup-blocked': 'O navegador bloqueou a janela do Google. Permita pop-ups e tente de novo.'
+    'auth/operation-not-allowed': 'Este tipo de login não está ativado no Firebase (Authentication → Método de login).', 'auth/credential-already-in-use': 'Essa conta já existe. Use “Entrar”.', 'ink/anon-off': 'O modo visitante ainda não foi ativado no Firebase (Authentication → Método de login → Anônimo).', 'auth/provider-already-linked': 'Esta conta já está ligada.', 'auth/configuration-not-found': 'O login ainda não foi ativado no Firebase (Authentication → Começar → Método de login).', 'auth/admin-restricted-operation': 'Criar conta está desativado no Firebase (Authentication → Configurações → Ações do usuário).', 'auth/invalid-api-key': 'A chave do Firebase no app está incorreta.', 'auth/popup-blocked': 'O navegador bloqueou a janela do Google. Permita pop-ups e tente de novo.'
   };
   const msgOf = e => ERR[e && e.code] || ('Não foi possível entrar agora' + (e && e.code ? ' (' + e.code + ')' : '') + '.');
-  function loginScreen() {
+  function loginScreen(opts = {}) {
+    const up = !!opts.upgrade;
     return new Promise(resolve => {
       const ov = document.createElement('div'); ov.id = 'inkLogin';
       ov.innerHTML = `<style>
@@ -189,32 +190,55 @@ export function install(cfg, F) {
 #inkLogin input{width:100%;box-sizing:border-box;background:#120c1a;border:1px solid #33264a;color:#f1eadf;border-radius:10px;padding:11px 12px;font-size:15px;outline:none}
 #inkLogin input:focus{border-color:#9d5cff}
 #inkLogin .b{width:100%;border:0;border-radius:11px;padding:12px;font:600 15px Inter,system-ui,sans-serif;cursor:pointer;margin-top:12px}
+#inkLogin .b:disabled{opacity:.6;cursor:wait}
 #inkLogin .p{background:linear-gradient(100deg,#9d5cff,#ff9640);color:#fff}#inkLogin .g{background:#fff;color:#222;display:flex;align-items:center;justify-content:center;gap:10px}
-#inkLogin .o{background:transparent;color:#b6a9c9;border:1px solid #33264a}
+#inkLogin .o{background:transparent;color:#d9cdee;border:1px solid #33264a}
 #inkLogin .row{display:flex;gap:8px}#inkLogin .row .b{flex:1}
 #inkLogin .sep{display:flex;align-items:center;gap:10px;color:#7d6f93;font-size:12px;margin:16px 0 4px}#inkLogin .sep:before,#inkLogin .sep:after{content:'';flex:1;height:1px;background:#33264a}
 #inkLogin .er{color:#ff8a7a;font-size:13.5px;min-height:18px;margin-top:10px;text-align:center}#inkLogin .ok{color:#9be3a8}
 #inkLogin a{color:#c9a8ff;font-size:13px;cursor:pointer;text-decoration:underline}#inkLogin .ft{text-align:center;margin-top:14px;font-size:12.5px;color:#7d6f93;line-height:1.5}
+#inkLogin .vis{margin-top:16px;padding:14px;border:1px dashed #3d2d57;border-radius:14px;background:#150f1e}
+#inkLogin .vis b{display:block;font-size:14.5px;margin-bottom:2px}#inkLogin .vis small{display:block;color:#a294b8;font-size:12.5px;line-height:1.45}
+#inkLogin .vis .b{margin-top:10px}
 </style>
-<div class="bx"><img src="img/wordmark.webp" alt="Inkmind"><h1>Entrar no Inkmind</h1><p class="s">Seus livros e campanhas salvos na nuvem, em qualquer aparelho.</p>
-<button class="b g" id="ilG"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Entrar com Google</button>
+<div class="bx"><img src="img/wordmark.webp" alt="Inkmind"><h1>${up ? 'Criar sua conta' : 'Entrar no Inkmind'}</h1><p class="s">${up ? 'Com conta você escreve livros, cria mesas e mestra. Suas fichas nas mesas continuam com você.' : 'Seus livros e campanhas salvos na nuvem, em qualquer aparelho.'}</p>
+<button class="b g" id="ilG"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>${up ? 'Continuar com Google' : 'Entrar com Google'}</button>
 <div class="sep">ou com e-mail</div>
 <label for="ilE">E-mail</label><input id="ilE" type="email" autocomplete="email" placeholder="voce@email.com">
 <label for="ilP">Senha</label><input id="ilP" type="password" autocomplete="current-password" placeholder="mínimo 6 caracteres">
-<div class="row"><button class="b p" id="ilIn">Entrar</button><button class="b o" id="ilUp">Criar conta</button></div>
+<div class="row">${up ? '<button class="b p" id="ilUp">Criar conta</button><button class="b o" id="ilIn">Já tenho conta</button>' : '<button class="b p" id="ilIn">Entrar</button><button class="b o" id="ilUp">Criar conta</button>'}</div>
 <div class="er" id="ilEr"></div>
-<div class="ft"><a id="ilFg">Esqueci a senha</a> · <a id="ilSk">Continuar sem conta</a><br><span>Sem conta, tudo fica salvo só neste navegador e a mesa ao vivo não funciona.</span></div></div>`;
+${up ? '<div class="ft"><a id="ilBack">Voltar sem criar conta</a><br><span>“Já tenho conta” troca para a sua conta; as fichas feitas como visitante ficam para trás.</span></div>'
+ : `<div class="ft"><a id="ilFg">Esqueci a senha</a></div>
+<div class="vis" id="ilVis"><b>🎲 Só quero jogar</b><small>Entre como <b style="display:inline">visitante</b> para jogar em mesas abertas. Visitantes não escrevem livros nem mestram.</small>
+<div id="ilVisF" style="display:none"><label for="ilNick">Seu apelido na mesa</label><input id="ilNick" maxlength="30" placeholder="ex.: Lia"></div>
+<button class="b o" id="ilAn">Entrar como visitante</button></div>`}
+</div>`;
       document.body.appendChild(ov);
-      const $ = s => ov.querySelector(s), er = $('#ilEr');
-      const busy = (on) => ov.querySelectorAll('button').forEach(b => b.disabled = on);
+      const $ = q => ov.querySelector(q), er = $('#ilEr');
+      const busy = on => ov.querySelectorAll('button').forEach(b => b.disabled = on);
       const done = u => { ov.remove(); resolve(u); };
       const run = async fn => { er.className = 'er'; er.textContent = ''; busy(true); try { const c = await fn(); if (c && c.user) done(c.user); } catch (e) { er.textContent = msgOf(e); } finally { busy(false); } };
-      $('#ilIn').onclick = () => run(() => F.signInWithEmailAndPassword(auth, $('#ilE').value.trim(), $('#ilP').value));
-      $('#ilUp').onclick = () => run(async () => { const c = await F.createUserWithEmailAndPassword(auth, $('#ilE').value.trim(), $('#ilP').value); try { await F.updateProfile(c.user, { displayName: $('#ilE').value.trim().split('@')[0] }); } catch {} return c; });
-      $('#ilG').onclick = () => run(() => F.signInWithPopup(auth, new F.GoogleAuthProvider()));
-      $('#ilP').onkeydown = e => { if (e.key === 'Enter') $('#ilIn').click(); };
-      $('#ilFg').onclick = async () => { const em = $('#ilE').value.trim(); if (!em) { er.textContent = 'Digite seu e-mail acima e clique de novo em “Esqueci a senha”.'; return; } try { await F.sendPasswordResetEmail(auth, em); er.className = 'er ok'; er.textContent = 'Enviamos um link para redefinir a senha para ' + em + '.'; } catch (e) { er.textContent = msgOf(e); } };
-      $('#ilSk').onclick = () => { try { sessionStorage.setItem('ink-skip-login', '1'); } catch {} done(null); };
+      const em = () => $('#ilE').value.trim(), pw = () => $('#ilP').value;
+      const cur = () => auth.currentUser;
+      if (up) {
+        $('#ilUp').onclick = () => run(async () => { const c = await F.linkWithCredential(cur(), F.EmailAuthProvider.credential(em(), pw())); try { await F.updateProfile(c.user, { displayName: cur().displayName || em().split('@')[0] }); } catch {} return c; });
+        $('#ilIn').onclick = () => run(() => F.signInWithEmailAndPassword(auth, em(), pw()));
+        $('#ilG').onclick = () => run(async () => { try { return await F.linkWithPopup(cur(), new F.GoogleAuthProvider()); } catch (e) { if (e && (e.code === 'auth/credential-already-in-use' || e.code === 'auth/email-already-in-use')) return F.signInWithPopup(auth, new F.GoogleAuthProvider()); throw e; } });
+        $('#ilBack').onclick = () => done(null);
+      } else {
+        $('#ilIn').onclick = () => run(() => F.signInWithEmailAndPassword(auth, em(), pw()));
+        $('#ilUp').onclick = () => run(async () => { const c = await F.createUserWithEmailAndPassword(auth, em(), pw()); try { await F.updateProfile(c.user, { displayName: em().split('@')[0] }); } catch {} return c; });
+        $('#ilG').onclick = () => run(() => F.signInWithPopup(auth, new F.GoogleAuthProvider()));
+        $('#ilFg').onclick = async () => { if (!em()) { er.textContent = 'Digite seu e-mail acima e clique de novo em “Esqueci a senha”.'; return; } try { await F.sendPasswordResetEmail(auth, em()); er.className = 'er ok'; er.textContent = 'Enviamos um link para redefinir a senha para ' + em() + '.'; } catch (e) { er.textContent = msgOf(e); } };
+        $('#ilAn').onclick = () => {
+          const f = $('#ilVisF'); if (f.style.display === 'none') { f.style.display = ''; $('#ilAn').className = 'b p'; $('#ilNick').focus(); return; }
+          const nick = $('#ilNick').value.trim(); if (!nick) { er.textContent = 'Escolha um apelido para aparecer na mesa.'; $('#ilNick').focus(); return; }
+          run(async () => { let c; try { c = await F.signInAnonymously(auth); } catch (e) { if (e && /admin-restricted-operation|operation-not-allowed/.test(e.code || '')) throw Object.assign(new Error('anon off'), { code: 'ink/anon-off' }); throw e; } try { await F.updateProfile(c.user, { displayName: nick }); } catch {} return c; });
+        };
+        $('#ilNick') && ($('#ilNick').onkeydown = e => { if (e.key === 'Enter') $('#ilAn').click(); });
+      }
+      $('#ilP').onkeydown = e => { if (e.key === 'Enter') (up ? $('#ilUp') : $('#ilIn')).click(); };
       setTimeout(() => $('#ilE').focus(), 50);
     });
   }
@@ -226,8 +250,7 @@ export function install(cfg, F) {
     if (boot) return boot;
     boot = (async () => {
       let u = await authReady;
-      let skip = false; try { skip = sessionStorage.getItem('ink-skip-login') === '1'; } catch {}
-      if (!u && !skip) u = await loginScreen();
+      if (!u) u = await loginScreen();
       state.user = u || null;
       if (u) {
         F.onAuthStateChanged(auth, x => { if (!x && state.user) location.reload(); });
@@ -248,8 +271,9 @@ export function install(cfg, F) {
   window.INK = {
     mode: 'firebase', DEL,
     get user() { return state.user; },
+    get isAnon() { return !!(state.user && state.user.isAnonymous); },
     async logout() { try { await F.deleteDoc(F.doc(fs, 'presence/' + state.user.uid)); } catch {} try { sessionStorage.removeItem('ink-skip-login'); } catch {} await F.signOut(auth); location.reload(); },
-    login() { try { sessionStorage.removeItem('ink-skip-login'); } catch {} location.reload(); },
+    async login() { if (state.user && state.user.isAnonymous) { const u = await loginScreen({ upgrade: true }); if (u) location.reload(); return; } location.reload(); },
     async renameMe(name) { if (!state.user) return; await F.updateProfile(state.user, { displayName: name }); await F.setDoc(F.doc(fs, 'profiles/' + state.user.uid), { name }, { merge: true }); },
     _enc: enc, _dec: dec, _flatten: flatten
   };

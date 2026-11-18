@@ -899,9 +899,14 @@ kbd{font:600 10.5px var(--ui,system-ui);border:1px solid var(--line);border-bott
 .pl-av{width:20px;text-align:center}
 .pl-code{font:700 18px ui-monospace,monospace;letter-spacing:.14em;color:var(--accent)}
 .pl-note{margin:0 0 10px;font-size:13.5px;color:var(--muted);text-align:center}
-.ex-mesas{margin:0 0 22px}.ex-mesas h3{margin:0 0 2px}
+.ex-mesas{margin:0 0 22px;padding:0 clamp(16px,4vw,48px)}.ex-mesas h3{margin:0 0 2px}
 .mesa.full{opacity:.55;cursor:default}
 @media (max-width:760px){.pl-acc{grid-template-columns:1fr}}
+/* v22 — modo visitante */
+.vis-card{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:0 0 16px;border-color:color-mix(in srgb,var(--accent) 35%,var(--line));background:linear-gradient(120deg,color-mix(in srgb,var(--accent) 10%,var(--panel)),var(--panel))}
+.vis-card .vis-ic{font-size:36px}.vis-card b{font-size:16px}.vis-card p{margin:4px 0 0;color:var(--muted);font-size:14px;line-height:1.5}
+.vis-act{display:flex;gap:8px;flex-wrap:wrap}
+.home.visitor .learn-cta{margin-top:0}
 </style>
 </head>
 <body>
@@ -1078,21 +1083,22 @@ const Store={
   let id=null;try{id=user?await user.id():null}catch{}
   S.uid=id;try{S.me=user?await user.me():null}catch{}try{S.isAdmin=user?!!(await user.canEdit()):false;S.canWrite=user?await user.can('data.write'):null}catch{}
   if(db&&id){S.db=db;S.base='data/users/'+id;S.backend='cloud'}
+  S.privCloud=S.backend==='cloud'&&!(S.me&&S.me.anon);
  },
  async list(){
-  if(S.backend==='cloud'){const snap=await withTimeout(S.db.collection(S.base).where('kind','==','project').get(),15000);return snap.docs.map(d=>clone(d.data()))}
+  if(S.privCloud){const snap=await withTimeout(S.db.collection(S.base).where('kind','==','project').get(),15000);return snap.docs.map(d=>clone(d.data()))}
   const out=[];
   if(lsOK){for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith(LS+'p_'))try{out.push(JSON.parse(localStorage.getItem(k)))}catch{}}}
   else Object.keys(mem).filter(k=>k.startsWith('p_')).forEach(k=>out.push(clone(mem[k])));
   return out;
  },
  async get(key){
-  if(S.backend==='cloud'){const s=await withTimeout(S.db.doc(S.base+'/'+key).get(),15000);return s.exists?clone(s.data()):null}
+  if(S.privCloud){const s=await withTimeout(S.db.doc(S.base+'/'+key).get(),15000);return s.exists?clone(s.data()):null}
   if(lsOK){const v=localStorage.getItem(LS+key);return v?JSON.parse(v):null}
   return mem[key]?clone(mem[key]):null;
  },
  async put(key,val){
-  if(S.backend==='cloud'){const r=S.db.doc(S.base+'/'+key);return val===null?r.delete():r.set(val)}
+  if(S.privCloud){const r=S.db.doc(S.base+'/'+key);return val===null?r.delete():r.set(val)}
   if(lsOK){if(val===null)localStorage.removeItem(LS+key);else localStorage.setItem(LS+key,JSON.stringify(val));return}
   if(val===null)delete mem[key];else mem[key]=clone(val);
  }
@@ -1125,7 +1131,7 @@ async function runQ(key){
 function setStatus(s){
  const el=$('#status');if(!el)return;
  el.classList.toggle('saving',s==='saving');el.classList.toggle('err',s==='err');
- el.innerHTML='<span class="d"></span>'+(s==='saving'?'Salvando…':s==='err'?'Erro ao salvar':(S.backend==='cloud'?'Salvo na nuvem':(lsOK?'Salvo neste navegador':'Sem armazenamento')));
+ el.innerHTML='<span class="d"></span>'+(s==='saving'?'Salvando…':s==='err'?'Erro ao salvar':(VISITOR()?'Visitante':S.backend==='cloud'?'Salvo na nuvem':(lsOK?'Salvo neste navegador':'Sem armazenamento')));
 }
 const saveProject=debounce(()=>{const p=P();if(!p)return;p.updatedAt=Date.now();queueWrite('p_'+p.id,p);const i=S.projects.findIndex(x=>x.id===p.id);if(i>=0)S.projects[i]=clone(p)},700);
 function savePrefs(){queueWrite('prefs',S.prefs)}
@@ -1218,7 +1224,7 @@ function renderHome(){
  const nCh=p=>p.chapters.length-(p.drafts||[]).length;
  $('#app').innerHTML=`<div class="home">
   <header class="home-h"><div class="brand"><img class="brand-wm" src="img/wordmark.webp" alt="Inkmind"></div><div class="sp"></div>
-   <span class="pill hide-m">${S.backend==='cloud'?'☁ Sincronizado na sua conta':(lsOK?'💾 Salvo neste navegador':'⚠ Sem armazenamento')}</span>
+   <span class="pill hide-m">${VISITOR()?'🎲 Visitante':S.backend==='cloud'?'☁ Sincronizado na sua conta':(lsOK?'💾 Salvo neste navegador':'⚠ Sem armazenamento')}</span>
    <button class="btn sm ghost" data-act="cmdk" title="Buscar (Ctrl+K)">${I('search')}</button><button class="btn sm" data-act="importBackup">${I('up')}<span class="hide-m">Restaurar backup</span></button>
    <button class="btn sm" data-act="themeQuick" title="Tema">${I('brush')}</button>${accountChip()}
   </header>
@@ -2977,7 +2983,7 @@ const prof=()=>S.prefs.profile||(S.prefs.profile={nick:'',emoji:'🖋️',color:
 const myName=()=>prof().nick||(S.me&&S.me.name)||'Você';
 function accountChip(){const p=prof();return `<button class="acct" data-act="account" title="Minha conta"><span class="tok" style="background:${esc(p.color)};width:28px;height:28px;font-size:15px">${esc(p.emoji)}</span><span class="hide-m">${esc(myName())}</span>${S.prefs.lock?'🔒':''}</button>`}
 ACT.account=async()=>{const p=prof(),o={emoji:p.emoji,color:p.color};
- const v=await modal({title:'Minha conta',wide:true,body:`<div class="notice" style="background:var(--panel2);border-color:var(--line)">${FBM()&&INK.user?`Você está na sua conta do Inkmind (<b>${esc(INK.user.email||S.me&&S.me.name||'')}</b>) — seus projetos ficam salvos na nuvem e só você os vê. <a href="#" data-act="inkLogout">Sair da conta</a>`:FBAVAIL()?`Você está usando o Inkmind <b>sem conta</b>: tudo fica salvo só neste navegador. <a href="#" data-act="inkLogin">Entrar ou criar conta</a>`:`Você entra no Inkmind com a sua conta do claude.ai${S.me&&S.me.name?` (<b>${esc(S.me.name)}</b>)`:''} — por isso seus projetos ficam só seus, em qualquer aparelho.`} Aqui você define como aparece para os outros e uma senha extra para abrir o app.</div>
+ const v=await modal({title:'Minha conta',wide:true,body:`<div class="notice" style="background:var(--panel2);border-color:var(--line)">${VISITOR()?`Você está como <b>visitante</b> (${esc(S.me&&S.me.name||'')}): joga em mesas abertas, mas não escreve livros nem mestra. <a href="#" data-act="inkLogin">Criar conta grátis</a> — suas fichas nas mesas continuam com você. · <a href="#" data-act="inkLogout">Sair</a>`:FBM()&&INK.user?`Você está na sua conta do Inkmind (<b>${esc(INK.user.email||S.me&&S.me.name||'')}</b>) — seus projetos ficam salvos na nuvem e só você os vê. <a href="#" data-act="inkLogout">Sair da conta</a>`:FBAVAIL()?`Você está usando o Inkmind <b>sem conta</b>: tudo fica salvo só neste navegador. <a href="#" data-act="inkLogin">Entrar ou criar conta</a>`:`Você entra no Inkmind com a sua conta do claude.ai${S.me&&S.me.name?` (<b>${esc(S.me.name)}</b>)`:''} — por isso seus projetos ficam só seus, em qualquer aparelho.`} Aqui você define como aparece para os outros e uma senha extra para abrir o app.</div>
   <label class="f">Apelido público (aparece como autor nas publicações e na mesa)</label><input id="acN" value="${esc(p.nick)}" maxlength="40" placeholder="${esc(S.me&&S.me.name||'Seu nome de autor')}">
   <label class="f">Ícone</label>${tokenPickerHTML(o.emoji,o.color)}
   <label class="f">Sobre você</label><textarea id="acB" rows="2" placeholder="Escritor de fantasia, mestre de RPG às sextas…">${esc(p.bio)}</textarea>
@@ -5499,6 +5505,25 @@ async function goMesa(tok,fromLink){if(S.backend!=='cloud'||!S.uid){openTable(to
    return `<div class="mesa ${full&&!me?'full':''}" ${full&&!me?'':`data-act="openTable" data-id="${esc(g.id)}" role="button" tabindex="0"`}><span class="mz">🎲</span><b>${esc(g.title||'Mesa')}</b><small>Mestre: ${esc((ps[g.masterId]&&ps[g.masterId].name)||'—')}</small><small>${me?'Você está nesta mesa':full?`Lotada (${n}/${mx})`:`${n}/${mx} jogadores · vaga aberta`}</small></div>`}).join(''):'<p class="muted small">Nenhuma mesa pública no momento. Que tal abrir a sua? Na mesa, toque em 👥 Jogadores → Pública.</p>'}
  catch(e){console.warn(e);$('#exMesaList').innerHTML='<p class="muted small">Não foi possível carregar as mesas agora.</p>'}
  return r}}
+
+
+/* ============ v22: modo visitante — só joga em mesas abertas ============ */
+const VISITOR=()=>!!(window.INK&&INK.mode==='firebase'&&INK.isAnon);
+function visitorBlock(what){toast('Visitantes só jogam em mesas abertas. Crie uma conta grátis para '+(what||'escrever e mestrar')+'.');setTimeout(()=>{if(window.INK)INK.login()},900)}
+['newProject','importBackup','openTableP'].forEach(k=>{const f=ACT[k];if(!f)return;ACT[k]=function(...a){if(VISITOR())return visitorBlock(k==='openTableP'?'ser mestre':k==='importBackup'?'restaurar projetos':'criar livros e campanhas');return f.apply(this,a)}});
+{const _op=openProject;openProject=async function(...a){if(VISITOR())return visitorBlock('escrever');return _op.apply(this,a)}}
+{const _rh3=renderHome;renderHome=function(...a){const r=_rh3.apply(this,a);if(!VISITOR())return r;
+ const home=document.querySelector('.home');if(!home)return r;home.classList.add('visitor');
+ home.querySelectorAll('.shelf,.newbook,[data-act=newProject],[data-act=importBackup],[data-act=hf],[data-act=hfNew],.chip,#inkLocal').forEach(e=>e.style.display='none');
+ const hero=home.querySelector('.hero');if(hero){const h=hero.querySelector('h1'),p=hero.querySelector('p');if(h)h.textContent='Olá, '+((S.me&&S.me.name)||'visitante')+'!';if(p)p.textContent='Você está como visitante: entre em mesas abertas, crie seu personagem e jogue.';
+  if(!$('#visCard')){const anchor=home.querySelector('.learn-cta')||hero;anchor.insertAdjacentHTML(anchor===hero?'afterend':'beforebegin',`<div class="card vis-card" id="visCard"><div class="vis-ic">🎲</div><div class="grow"><b>Modo visitante</b><p>Você pode jogar em <b>mesas públicas</b>. Para escrever livros, criar mesas, mestrar ou entrar em mesas particulares, crie uma conta grátis — suas fichas continuam com você.</p></div><div class="vis-act"><button class="btn primary" data-act="explore">🎲 Ver mesas abertas</button><button class="btn" data-act="joinByCode">Tenho um código</button><button class="btn ghost" data-act="inkLogin">Criar conta</button></div></div>`)}}
+ return r}}
+{const _lm2=loadMesas;loadMesas=async function(...a){const r=await _lm2.apply(this,a);if(VISITOR()){const vh=document.querySelector('#mesas .vh p');if(vh)vh.textContent='Mesas em que você entrou como visitante.';document.querySelectorAll('#mesas p.muted').forEach(p=>{if(/Nenhuma mesa/.test(p.textContent))p.innerHTML='Você ainda não entrou em nenhuma mesa. Veja as <a href="#" data-act="explore">mesas abertas</a> ou use o código que o mestre mandou.'})}return r}}
+{const _ra=renderAskJoin;renderAskJoin=function(gid,st){if(!VISITOR())return _ra.apply(this,arguments);T.gid=gid;const inv=T.inv||{};const b=$('#tBody');if(!b)return;const ib=$('.tbl-h [data-act=tInvite]');if(ib)ib.style.display='none';
+ b.className='tbl-b lobby';b.innerHTML=`<main class="tmain"><div class="tpad narrow" id="tAsk"><div class="card lobby"><div class="lobby-ic">🔒</div><h2>${esc(inv.title||'Mesa particular')}</h2>${inv.masterName?`<p class="muted">Mestre: ${esc(inv.masterName)}</p>`:''}<p>Esta mesa é <b>particular</b>. Visitantes jogam só em mesas públicas — crie uma conta grátis para pedir para entrar.</p><button class="btn primary" data-act="inkLogin" style="width:100%;padding:13px;font-size:15px">Criar conta grátis</button><button class="btn ghost" data-act="explore" style="width:100%;margin-top:8px">Ver mesas abertas</button></div></div></main>`}}
+{const _aj=aclJoin;aclJoin=async function(){const g=T.game;if(VISITOR()&&g&&!isMaster()&&!(g.players||{})[S.uid]&&gAccess(g)!=='public')throw aclErr('Visitantes só entram em mesas públicas. Crie uma conta grátis para jogar nesta mesa.');return _aj.apply(this,arguments)}}
+{const _rl2=renderLobby;renderLobby=function(){const r=_rl2.apply(this,arguments);if(!VISITOR()||!T.game||isMember())return r;
+ if(gAccess()!=='public'){const btn=$('#tLobby [data-act=tEnter][data-as=player]');if(btn){btn.disabled=true;if(!$('#tLobby .pl-note'))btn.insertAdjacentHTML('beforebegin','<p class="pl-note">Visitantes jogam só em mesas públicas. <a href="#" data-act="inkLogin">Criar conta</a></p>')}}return r}}
 
 /* ============ início ============ */
 window.addEventListener('beforeunload',()=>{try{flushChapter()}catch{}});

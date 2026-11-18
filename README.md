@@ -2,7 +2,7 @@
 
 Escreva • Publique • Jogue • Viva suas histórias
 
-**Versão atual:** v21 — 18/11/2026 (mesa pública ou particular, entrada controlada)
+**Versão atual:** v22 — 18/11/2026 (modo visitante)
 
 App para escrever livros e criar/jogar RPG de mesa: editor com ferramentas do Word, compêndio do mundo, visualização de impressão com sumário automático, exportação (PDF, Word, EPUB, HTML, Markdown, TXT) e mesa de RPG com mapas, fichas e dados.
 
@@ -15,7 +15,7 @@ Ao abrir o site, o Inkmind pede para **entrar** (Google ou e-mail e senha). Com 
 - a **mesa de RPG ao vivo** funciona (mestre e jogadores, cada um no seu aparelho);
 - dá para publicar na biblioteca (Explorar).
 
-Também dá para **continuar sem conta**: aí tudo fica só no navegador daquele aparelho.
+Sem conta dá para entrar como **visitante** (só um apelido): visitantes jogam em mesas públicas, mas não escrevem livros, não criam mesas nem mestram. Depois, o visitante pode criar a conta e continua com as mesmas fichas.
 A geração de imagem por IA continua disponível só na versão dentro do Claude.
 
 ## Arquivos
