@@ -877,6 +877,16 @@ kbd{font:600 10.5px var(--ui,system-ui);border:1px solid var(--line);border-bott
  .vh::after,.vh:has(>.btn,>.row,>input,>.sp+*)::after{right:-10px;top:8px;transform:rotate(-5deg);height:64px}
  .hero::after{height:76px;right:6px;top:14px}
 }
+/* v19 — botão da Estante visível */
+.rail .rback{width:100%;justify-content:flex-start;gap:9px;border:1px solid color-mix(in srgb,var(--accent) 32%,var(--line));background:color-mix(in srgb,var(--accent) 10%,var(--panel2));color:var(--ink);font-weight:600;font-size:13.5px;padding:9px 11px;border-radius:11px;margin:0 0 10px}
+.rail .rback .ico{width:18px;height:18px;color:var(--accent)}
+.rail .rback:hover{background:color-mix(in srgb,var(--accent) 18%,var(--panel2));color:var(--ink)}
+@media (max-width:860px){
+ .rail nav .ik-homeb{color:var(--accent)}
+ .rail nav .ik-homeb .ico{color:var(--accent)}
+ .rail nav button{padding-left:2px;padding-right:2px}
+ .rail nav button span{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+}
 </style>
 </head>
 <body>
@@ -1294,7 +1304,7 @@ async function openProject(id){
  ensureOutline(S.P);
  $('#app').innerHTML=`<div class="ws">
   <aside class="rail">
-   <button class="rback" data-act="home" title="Estante">${I('back')}<span>Estante</span></button>
+   <button class="rback" data-act="home" title="Voltar para a Estante">${I('home')}<span>Estante</span></button>
    <input class="ptitle" id="ptitle" value="${esc(S.P.title)}" aria-label="Título do projeto">
    <button class="ik-rs hide-m" data-act="cmdk" title="Buscar ferramenta (Ctrl+K)">${I('search')}<span>Buscar</span><kbd>Ctrl K</kbd></button>
    <nav id="tabs">${railNav()}</nav>
@@ -4795,7 +4805,7 @@ function mobileMain(p=P()){return p.type==='rpg'?['write','codex','table','publi
 function railNav(){
  const p=P(),rpg=p.type==='rpg',mm=mobileMain(p);
  const btn=k=>`<button data-act="view" data-v="${k}" class="${mm.includes(k)?'':'ik-rx'}">${I(VIEWS[k][1])}<span>${VIEWS[k][0]}</span></button>`;
- return RAIL_GROUPS.map(([g,vs])=>(g?`<div class="rsep">${g}</div>`:'')+vs.map(btn).join('')).join('')+
+ return `<button class="show-m ik-homeb" data-act="home" title="Voltar para a Estante">${I('home')}<span>Estante</span></button>`+RAIL_GROUPS.map(([g,vs])=>(g?`<div class="rsep">${g}</div>`:'')+vs.map(btn).join('')).join('')+
   (rpg?`<div class="rsep">Jogo</div><button data-act="openTableP" class="${mm.includes('table')?'':'ik-rx'}">${I('table')}<span>Mesa de jogo</span></button>`:'')+
   `<button class="show-m ik-more" data-act="moreM">${I('more')}<span>Mais</span></button>`;
 }

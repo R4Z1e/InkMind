@@ -2,7 +2,7 @@
 
 Escreva • Publique • Jogue • Viva suas histórias
 
-**Versão atual:** v18 — 18/11/2026 (conta e nuvem com Firebase)
+**Versão atual:** v19 — 18/11/2026 (botão da Estante visível)
 
 App para escrever livros e criar/jogar RPG de mesa: editor com ferramentas do Word, compêndio do mundo, visualização de impressão com sumário automático, exportação (PDF, Word, EPUB, HTML, Markdown, TXT) e mesa de RPG com mapas, fichas e dados.
 
