@@ -54,6 +54,11 @@ service cloud.firestore {
         allow read: if signedIn() && canReadGame(gameOf(gid));
         allow write: if signedIn() && masterOf(gid);
       }
+      // Mapa completo (monstros escondidos, armadilhas, áreas sob a névoa): só o mestre.
+      // Os jogadores leem /maps, que o app do mestre publica só com o que eles podem ver.
+      match /gmmaps/{mid} {
+        allow read, write: if signedIn() && masterOf(gid);
+      }
       // Notas do mestre e revelações preparadas: só o mestre
       match /secret/{doc} {
         allow read, write: if signedIn() && masterOf(gid);

@@ -259,6 +259,7 @@ ${up ? '<div class="ft"><a id="ilBack">Voltar sem criar conta</a><br><span>â€œJÃ
       for (const g of (await F.getDocs(F.query(F.collection(fs, 'games'), F.where('masterId', '==', uid)))).docs) {
         const gid = g.id, gd = g.data() || {};
         for (const m of await list(`games/${gid}/maps`)) await del(`games/${gid}/maps/${m}`);
+        for (const m of await list(`games/${gid}/gmmaps`)) await del(`games/${gid}/gmmaps/${m}`);
         for (const r of await list(`games/${gid}/requests`)) await del(`games/${gid}/requests/${r}`);
         await del(`games/${gid}/secret/gm`); if (gd.code) await del('invites/' + gd.code); await del('games/' + gid);
       }
