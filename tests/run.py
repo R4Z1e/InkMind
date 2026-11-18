@@ -268,9 +268,19 @@ async def t_revisor(b):
     check(await m.evaluate("(RV.issues.find(x=>x.word==='palvra').sug||[])[0]") == 'palavra', 'primeira sugestão para “palvra” é “palavra”')
     c.no_errors()
 
+async def t_relatos(b):
+  async with Ctx(b) as c:
+    u = await c.user('testador'); await u.evaluate('ACT.feedback(),0'); await u.wait_for_selector('#fbT')
+    await u.fill('#fbT', 'O dado não apareceu.'); await u.click('.dlg-f .btn.primary'); await u.wait_for_timeout(800)
+    docs = await u.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('mockfs:feedback/')).map(k=>JSON.parse(localStorage[k]))")
+    check(len(docs) == 1 and docs[0]['kind'] == 'bug' and docs[0]['ctx']['v'], 'relato enviado com versão e aparelho')
+    check(await u.evaluate("S.db.collection('feedback').get().then(()=>'leu',()=>'negado')") == 'negado', 'só a moderação lê os relatos')
+    await u.evaluate("setTimeout(()=>{null.teste},0)"); await u.wait_for_timeout(800)
+    check(await u.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('mockfs:feedback/')).map(k=>JSON.parse(localStorage[k])).some(d=>d.kind==='error')"), 'erro do app registrado sozinho')
+
 TESTS = [('modo_local', t_modo_local), ('conta_nuvem', t_conta_nuvem), ('economia', t_economia), ('mesa_visitante', t_mesa_visitante),
          ('combate', t_combate), ('mapa_secreto', t_mapa_secreto), ('coautoria', t_coautoria), ('moderacao_conta', t_moderacao_conta),
-         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor)]
+         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos)]
 
 async def main():
   only = sys.argv[1:]; fails = []

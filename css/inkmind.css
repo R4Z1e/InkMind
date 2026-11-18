@@ -997,3 +997,18 @@ kbd{font:600 10.5px var(--ui,system-ui);border:1px solid var(--line);border-bott
 ::highlight(rv-dl){text-decoration:underline wavy #a77bf3;text-decoration-thickness:1.5px;text-underline-offset:3px}
 ::highlight(rv-st){text-decoration:underline dotted #4ea1ff;text-decoration-thickness:2px;text-underline-offset:3px}
 @media (max-width:860px){.rv-panel{top:auto;height:58vh;bottom:70px;right:8px;left:8px;width:auto}}
+/* v32 — relatos */
+.fb-ban{position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:90;display:flex;align-items:center;gap:8px;flex-wrap:wrap;max-width:calc(100vw - 24px);background:var(--panel);border:1px solid #f2994a;border-radius:12px;padding:8px 10px;box-shadow:var(--shadow);font-size:13.5px}
+.fb-r{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:6px;background:var(--panel2)}.fb-r summary{cursor:pointer;list-style:none}
+.fb-pre{white-space:pre-wrap;word-break:break-word;font-size:11.5px;background:var(--paper);border-radius:8px;padding:8px;max-height:220px;overflow:auto}
+.fb-img{max-width:100%;max-height:260px;border-radius:8px;margin:6px 0;border:1px solid var(--line)}
+@media (max-width:860px){.fb-ban{bottom:78px}}
+.pl-notif .btn{white-space:normal;text-align:left;height:auto;line-height:1.35;padding-top:7px;padding-bottom:7px;max-width:100%}
+.intro-skip{z-index:5;bottom:calc(18px + env(safe-area-inset-bottom,0px));background:rgba(10,7,16,.85)}
+/* v32 — cabeçalho da mesa em telas bem estreitas: "Mestre conectado" vira só a bolinha */
+.tbl-h>.btn,.tbl-h>button{flex-shrink:0}
+@media (max-width:400px){
+ .tbl-h .mpill{font-size:0;width:12px;height:12px;min-width:12px;padding:0;border-radius:50%;background:#8a8494;border:0;flex-shrink:0}
+ .tbl-h .mpill.on{background:#2ecc71;box-shadow:0 0 0 3px rgba(46,204,113,.25)}
+ .tbl-h{gap:4px}
+}

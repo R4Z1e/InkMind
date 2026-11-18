@@ -169,6 +169,15 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    // Relatos de problemas, sugestões e erros automáticos: qualquer pessoa conectada envia; só a moderação lê
+    match /feedback/{fid} {
+      allow create: if signedIn() && request.resource.data.by == me() && request.resource.data.status == 'open' &&
+        request.resource.data.keys().hasOnly(['by', 'name', 'kind', 'text', 'ctx', 'log', 'err', 'img', 't', 'status']) &&
+        request.resource.data.kind in ['bug', 'idea', 'error'] && request.resource.data.text.size() <= 3000 &&
+        request.resource.data.get('log', '').size() <= 4000;
+      allow read, update, delete: if isAdmin();
+    }
+
     // Conteúdo ocultado pela moderação: todos leem (para filtrar Explorar); só a moderação mexe
     match /hidden/{id} {
       allow read: if true;

@@ -35,6 +35,7 @@ no Claude (versão artefato) ou no Firebase (versão do site, pelo `inkmind-fb.j
 | `js/24-livro-rpg.js` | Menus por tipo: livro com Wiki e dicionário; RPG com Publicar e Estilo em "Mais" |
 | `js/25-dicionario.js` | Dicionário do escritor (palavras inventadas) dentro da Wiki/Compêndio; @ insere palavras |
 | `js/26-revisor.js` | Revisor do escritor: dicionários baixáveis, ortografia, gramática, diálogos e estilo |
+| `js/27-relatos.js` | Relatar problema/sugestão e registro automático de erros (coleção `feedback`, lida no painel 🛡 Moderação) |
 | `js/lib/spell-worker.js` | Leitor dos dicionários (Web Worker), gerado de `tools/spell-worker-src.js` |
 | `dict/` | Dicionários baixáveis (`*.trie.gz`) e suas licenças (`dict/LEIA-ME.md`) |
 | `js/99-inicio.js` | Inicialização (sempre por último) |
@@ -56,7 +57,7 @@ no Claude (versão artefato) ou no Firebase (versão do site, pelo `inkmind-fb.j
 
 Rodam sozinhos no GitHub (aba **Actions → Testes do app**) a cada envio. Cada cenário abre o app num navegador
 de verdade e confere o resultado: modo local, conta na nuvem, economia de gravações, mesa com visitante, combate,
-segredos do mapa, coautoria, moderação e exclusão de conta, levar projetos do Claude para o site, celular (janela cabe na tela, dados animados), menus por tipo e revisor.
+segredos do mapa, coautoria, moderação e exclusão de conta, levar projetos do Claude para o site, celular (janela cabe na tela, dados animados), menus por tipo, revisor e relatos. `tools/varredura-celular.py` percorre ~60 telas em 320 px procurando coisas que saem da tela.
 
 No computador: veja as instruções no topo de `tests/run.py`.
 
