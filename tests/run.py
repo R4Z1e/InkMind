@@ -278,9 +278,24 @@ async def t_relatos(b):
     await u.evaluate("setTimeout(()=>{null.teste},0)"); await u.wait_for_timeout(800)
     check(await u.evaluate("Object.keys(localStorage).filter(k=>k.startsWith('mockfs:feedback/')).map(k=>JSON.parse(localStorage[k])).some(d=>d.kind==='error')"), 'erro do app registrado sozinho')
 
+async def t_zoom(b):
+  async with Ctx(b) as c:
+    m = await c.user('mestre', vp={'width': 390, 'height': 844}); await new_project(m, 'rpg', 'Zoom'); await open_table(m)
+    await m.evaluate('buildAdventure()'); await m.wait_for_timeout(1200); await m.click('[data-act=tTab][data-t=maps]'); await m.wait_for_timeout(700)
+    check(await m.evaluate("!!document.getElementById('mzCtl')"), 'editor de mapa tem os botões de zoom')
+    await m.click('#mzCtl [data-act=mzIn]'); await m.wait_for_timeout(300); check(await m.inner_text('#mzCtl .mz-v') == '125%', 'botão + aproxima')
+    await m.click('#mzCtl [data-act=mzFit]'); await m.wait_for_timeout(300)
+    check(await m.evaluate("$('#mapC').getBoundingClientRect().width<=$('#mapScroll').clientWidth"), 'ver o mapa inteiro cabe na tela')
+    tiles = await m.evaluate('T.edit.tiles'); z0 = await m.evaluate('T.zoom')
+    await m.evaluate("""()=>{const cv=$('#mapC'),r=cv.getBoundingClientRect(),cx=r.left+80,cy=r.top+80,ev=(t,id,x,y)=>cv.dispatchEvent(new PointerEvent(t,{pointerId:id,pointerType:'touch',clientX:x,clientY:y,bubbles:true,cancelable:true}));
+      ev('pointerdown',1,cx-20,cy);ev('pointerdown',2,cx+20,cy);for(let i=1;i<=5;i++){ev('pointermove',1,cx-20-i*8,cy);ev('pointermove',2,cx+20+i*8,cy)}ev('pointerup',2,cx+60,cy);ev('pointerup',1,cx-60,cy)}""")
+    await m.wait_for_timeout(500)
+    check(await m.evaluate('T.zoom') > z0 and await m.evaluate('T.edit.tiles') == tiles, 'pinça com dois dedos aproxima sem desenhar no mapa')
+    c.no_errors()
+
 TESTS = [('modo_local', t_modo_local), ('conta_nuvem', t_conta_nuvem), ('economia', t_economia), ('mesa_visitante', t_mesa_visitante),
          ('combate', t_combate), ('mapa_secreto', t_mapa_secreto), ('coautoria', t_coautoria), ('moderacao_conta', t_moderacao_conta),
-         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos)]
+         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom)]
 
 async def main():
   only = sys.argv[1:]; fails = []

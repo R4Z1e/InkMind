@@ -224,7 +224,7 @@ ACT.tTokenEdit=async()=>{const s=mySeat();if(!s)return;const o={emoji:s.emoji,co
 PR.map=()=>{const g=T.game,m=T.maps[g.activeMap];T.shownMap=g.activeMap;
  if(!m){$('#tMain').innerHTML=`<div class="empty"><div class="big">Nenhum mapa aberto</div><p>${isMaster()?'Crie um mapa em Mestre → Mapas e toque em “Mostrar aos jogadores”.':'O mestre ainda não revelou o mapa desta cena.'}</p></div>`;return}
  const s=mySeat(),placed=s&&s.pos&&s.pos.m===m.id;
- $('#tMain').innerHTML=`<div class="mapview"><div class="mapbar"><b>${esc(m.name)}</b><span class="sp"></span>${s&&!placed?'<button class="btn sm primary" data-act="tPlace">Colocar meu token</button>':''}${placed?'<button class="btn sm" data-act="tFind">Achar meu token</button>':''}<button class="btn sm" data-act="tZoom" data-d="-1">−</button><button class="btn sm" data-act="tZoom" data-d="1">+</button></div>
+ $('#tMain').innerHTML=`<div class="mapview"><div class="mapbar"><b>${esc(m.name)}</b><span class="sp"></span>${s&&!placed?'<button class="btn sm primary" data-act="tPlace">Colocar meu token</button>':''}${placed?'<button class="btn sm" data-act="tFind">Achar meu token</button>':''}</div>
   <div class="mapscroll ${m.style==='dark'?'darkbg':''}" id="mapScroll"><div class="mapstack"><canvas id="mapC"></canvas><canvas id="tokC" class="tokc"></canvas></div></div><p class="small muted mapHint">${m.fogOn&&!isMaster()?'Áreas escuras ainda não foram reveladas. ':''}Arraste ${isMaster()?'qualquer token':'o seu token'} para mover · arraste o fundo para navegar.</p></div>`;
  bindMapCanvas($('#mapC'),$('#mapScroll'),{map:()=>T.maps[T.game.activeMap],redraw:redrawPlay,editor:false});redrawPlay();
 };
@@ -566,7 +566,7 @@ MR.maps=()=>{const g=T.game,ids=Object.keys(T.maps).sort((a,b)=>String(T.maps[a]
   <button class="btn sm" data-act="mNew">${I('plus')} Novo mapa</button>
   ${m?`<select id="mStyle" title="Estilo visual">${Object.entries(MAP_STYLES).map(([k,v])=>`<option value="${k}" ${(m.style||'classic')===k?'selected':''}>${v[0]}</option>`).join('')}</select>
   <button class="btn sm ${m.fogOn?'primary':''}" data-act="mFog">🌫 Névoa${m.fogOn?' ✓':''}</button>
-  <button class="btn sm" data-act="mUndo">↶ Desfazer</button><button class="btn sm" data-act="tZoom" data-d="-1">−</button><button class="btn sm" data-act="tZoom" data-d="1">+</button>
+  <button class="btn sm" data-act="mUndo">↶ Desfazer</button>
   <button class="btn sm" data-act="mMore">⋯ Mais</button><span class="sp"></span>
   <button class="btn sm ${g.activeMap===m.id?'':'primary'}" data-act="mActive">${g.activeMap===m.id?'✓ Visível aos jogadores':'👁 Mostrar aos jogadores'}</button>`:''}</div>
   ${m?`<div class="medit"><div class="mtools">${tools}</div>
