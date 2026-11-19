@@ -293,9 +293,32 @@ async def t_zoom(b):
     check(await m.evaluate('T.zoom') > z0 and await m.evaluate('T.edit.tiles') == tiles, 'pinça com dois dedos aproxima sem desenhar no mapa')
     c.no_errors()
 
+async def t_telao(b):
+  async with Ctx(b) as c:
+    await c.ctx.add_init_script(FB)
+    m = await c.user('mestre'); await new_project(m, 'rpg', 'Telão'); gid = await open_table(m)
+    await m.evaluate('buildAdventure()'); await m.wait_for_timeout(1500)
+    ids = await m.evaluate("(()=>{const ms=Object.values(T.maps),by=n=>ms.find(x=>x.name===n).id;return {p:by('Porão do Moinho')}})()")
+    p = await c.user('jogador'); await join_table(p, gid)
+    await m.evaluate(f"gamePatch({{activeMap:'{ids['p']}'}})"); await p.evaluate(f"seatPatch(S.uid,{{pos:{{m:'{ids['p']}',x:20,y:6}}}})"); await m.wait_for_timeout(1500)
+    check(await m.evaluate("!!document.querySelector('.tbl-h [data-act=telao]')"), 'mestre tem o botão Telão')
+    await m.click('.tbl-h [data-act=telao]'); await m.wait_for_selector('.tv-opt')
+    async with c.ctx.expect_page() as np: await m.click('.tv-opt[data-v=here]')
+    tv = await np.value; await tv.wait_for_load_state('domcontentloaded')
+    for _ in range(40):
+      if await tv.evaluate("!!(window.T&&T.screen&&T.game&&document.getElementById('mapC'))"): break
+      await tv.wait_for_timeout(500)
+    st = await tv.evaluate("[T.screen,isMaster(),T.view,document.body.classList.contains('telao')]")
+    check(st == [True, False, 'play', True], 'telão abre como espectador, na tela de jogo')
+    names = await tv.evaluate('T.game.chars.map(c=>c.name)')
+    check('Goblin vigia' in names and not any('Grik' in n for n in names), 'telão mostra só os monstros que os jogadores veem')
+    check(await tv.evaluate('T.secret') in (None, {}) and not await tv.evaluate('!!T.gmMaps'), 'telão não carrega os segredos nem o mapa do mestre')
+    check(await m.evaluate('T.seats.length') == 1, 'telão não ocupa vaga de jogador')
+    check(await tv.evaluate("getComputedStyle(document.querySelector('.tbl-h')).display") == 'none', 'telão esconde os controles da mesa')
+
 TESTS = [('modo_local', t_modo_local), ('conta_nuvem', t_conta_nuvem), ('economia', t_economia), ('mesa_visitante', t_mesa_visitante),
          ('combate', t_combate), ('mapa_secreto', t_mapa_secreto), ('coautoria', t_coautoria), ('moderacao_conta', t_moderacao_conta),
-         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom)]
+         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao)]
 
 async def main():
   only = sys.argv[1:]; fails = []

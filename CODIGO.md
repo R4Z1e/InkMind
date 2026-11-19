@@ -37,6 +37,7 @@ no Claude (versão artefato) ou no Firebase (versão do site, pelo `inkmind-fb.j
 | `js/26-revisor.js` | Revisor do escritor: dicionários baixáveis, ortografia, gramática, diálogos e estilo |
 | `js/27-relatos.js` | Relatar problema/sugestão e registro automático de erros (coleção `feedback`, lida no painel 🛡 Moderação) |
 | `js/28-zoom.js` | Zoom do mapa (editor e sessão): botões flutuantes, pinça no celular, Ctrl+roda no PC |
+| `js/29-telao.js` | Modo telão: janela/aparelho espectador (`?telao=<mesa>`) que mostra só o que os jogadores veem |
 | `js/lib/spell-worker.js` | Leitor dos dicionários (Web Worker), gerado de `tools/spell-worker-src.js` |
 | `dict/` | Dicionários baixáveis (`*.trie.gz`) e suas licenças (`dict/LEIA-ME.md`) |
 | `js/99-inicio.js` | Inicialização (sempre por último) |

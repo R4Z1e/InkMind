@@ -1021,3 +1021,22 @@ kbd{font:600 10.5px var(--ui,system-ui);border:1px solid var(--line);border-bott
 .mz-ctl button[data-act=mzFit]{border-left:1px solid var(--line);font-size:18px}
 .mapscroll{touch-action:pan-x pan-y}
 @media (max-width:860px){.mz-ctl{right:10px;bottom:10px}.mz-ctl button{min-width:44px;height:44px}}
+/* v34 — telão */
+.tv-opts{display:grid;gap:8px;margin:6px 0 12px}
+.tv-opt{display:grid;grid-template-columns:40px 1fr;grid-template-rows:auto auto;column-gap:10px;text-align:left;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--panel2);color:var(--ink);cursor:pointer}
+.tv-opt:hover{border-color:var(--accent)}.tv-opt span{grid-row:span 2;font-size:26px;align-self:center}.tv-opt small{color:var(--muted);font-size:12.5px}
+.tv-qr{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:12px}.tv-qr svg{width:180px;height:180px;background:#fff;border-radius:10px}
+body.telao{background:#07050a}
+body.telao .tbl-h,body.telao #tSub,body.telao #actbar,body.telao .feed,body.telao .stpanel,body.telao .st-grip,body.telao .st-tog,body.telao #mzCtl,body.telao .rail,body.telao #fbBan,body.telao .bnav{display:none!important}
+body.telao .tbl-b.playv{height:100vh;height:100dvh}
+body.telao .play{height:100%}
+body.telao .party{justify-content:center}
+body.telao .party .pcard{font-size:15px}
+body.telao .mapscroll{background:#07050a}
+.tv-ctl{position:fixed;top:12px;right:12px;z-index:95;display:flex;gap:6px;align-items:center;padding:6px;border-radius:14px;background:rgba(12,9,18,.82);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(6px);opacity:0;transform:translateY(-8px);transition:opacity .25s,transform .25s;pointer-events:none}
+body.tv-show .tv-ctl{opacity:1;transform:none;pointer-events:auto}
+.tv-ctl button{border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.06);color:#efe6d6;border-radius:10px;padding:8px 12px;font-size:14px;cursor:pointer}
+.tv-ctl .tv-t{color:#cdb8e8;font-weight:600;padding:0 6px}
+body.telao:not(.tv-show){cursor:none}
+.tv-wait{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;min-height:60vh;color:#e8dcc4;padding:24px}
+.tv-wait img{width:min(360px,70vw);opacity:.9}.tv-wait h2{font:600 30px var(--disp);margin:8px 0 0}.tv-wait p{color:#b9aecb;max-width:520px}
