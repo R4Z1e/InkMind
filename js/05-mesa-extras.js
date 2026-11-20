@@ -231,7 +231,7 @@ async function publishProject(){
   const base='pubs/'+S.uid,bp=base+'/books/'+p.id;const order=bookOrder();const toc=[];let lastF=null,words=0;
   let prev=[];try{const ps=await S.db.doc(bp).get();if(ps.exists)prev=(ps.data().toc||[]).map(t=>t.id)}catch{}
   for(let i=0;i<order.length;i++){const o=order[i],c=cm(o.id);b.set(`Publicando capítulo ${i+1} de ${order.length}…`);const d=await getChapter(o.id);const html=clean(d.html||'');
-   const fid=o.folder?o.folder.id:null;toc.push({id:o.id,title:c.title||'Sem título',part:fid&&fid!==lastF?o.folder.title:null});lastF=fid;words+=c.words||0;
+   const fid=o.folder?o.folder.id:null;toc.push({id:o.id,title:c.title||'Sem título',...(chKick(c)!=null?{kick:chKick(c)}:{}),part:fid&&fid!==lastF?o.folder.title:null});lastF=fid;words+=c.words||0;
    try{await S.db.doc(bp+'/ch/'+o.id).set({title:c.title||'',html,n:i+1})}catch(e){if(e&&e.code==='invalid_argument')throw new Error(`O capítulo “${c.title}” é grande demais para publicar (limite ~250 KB). Divida-o em dois.`);throw e}}
   for(const id of prev)if(!toc.some(t=>t.id===id))await S.db.doc(bp+'/ch/'+id).delete().catch(()=>{});
   const s=p.settings;const author=p.author||myName();
@@ -294,5 +294,5 @@ async function renderReader(owner,pid,idx){
  showReaderCh(RD.idx);
 }
 async function showReaderCh(i){const toc=RD.book.toc||[];if(!toc.length){$('#rdBody').innerHTML='<p class="muted">Sem capítulos.</p>';return}i=clamp(i,0,toc.length-1);RD.idx=i;const t=toc[i];
- $('#rdK').textContent=(t.part?t.part+' · ':'')+(RD.book.kind==='rpg'?'Seção ':'Capítulo ')+(i+1);$('#rdT').textContent=t.title;$('#rdBody').innerHTML='<p class="muted">Carregando…</p>';$('#rdCh').value=i;$('#rdPrev').disabled=i===0;$('#rdNext').disabled=i===toc.length-1;$('#rdScroll').scrollTop=0;
+ $('#rdK').textContent=(t.part?t.part+' · ':'')+(t.kick!=null?t.kick:(RD.book.kind==='rpg'?'Seção ':'Capítulo ')+(RD.book.toc.slice(0,i+1).filter(x=>x.kick==null).length));$('#rdT').textContent=t.title;$('#rdBody').innerHTML='<p class="muted">Carregando…</p>';$('#rdCh').value=i;$('#rdPrev').disabled=i===0;$('#rdNext').disabled=i===toc.length-1;$('#rdScroll').scrollTop=0;
  try{const s=await S.db.doc(`pubs/${RD.owner}/books/${RD.pid}/ch/${t.id}`).get();if(RD.idx!==i)return;$('#rdBody').innerHTML=s.exists?clean(s.data().html||'')||'<p class="muted">Capítulo vazio.</p>':'<p class="muted">Capítulo indisponível.</p>'}catch{$('#rdBody').innerHTML='<p class="muted">Não consegui carregar.</p>'}}

@@ -187,7 +187,7 @@ ACT.openCh=el=>{if(el.dataset.id!==S.cid)openChapter(el.dataset.id);else closeSi
 ACT.chAdd=async el=>{
  const p=P();await flushChapter();ensureOutline(p);
  const fid=el&&el.dataset&&el.dataset.fid,draft=el&&el.dataset&&el.dataset.draft;
- const id=uid();p.chapters.push({id,title:draft?'Rascunho':(p.type==='rpg'?'Nova seção':'Capítulo '+(bookOrder().length+1)),status:'rascunho',words:0});
+ const id=uid();p.chapters.push({id,title:draft?'Rascunho':(p.type==='rpg'?'Nova seção':'Capítulo '+(bookOrder().filter(o=>{const m=chMeta(o.id);return !(m&&typeof m.kicker==='string')}).length+1)),status:'rascunho',words:0});
  placeChapter(id,draft?{where:'drafts'}:fid?{where:'folder',fid}:{where:'root'});
  S.cache[id]={html:'',notes:''};queueWrite('c_'+id,{kind:'chapter',pid:p.id,id,html:'',notes:''});saveProject();
  if(!$('#page')){S.cid=id;await RENDER.write()}else await openChapter(id);
@@ -712,7 +712,7 @@ async function gather(){
  if(x.scope==='sel')list=list.filter(o=>x.sel[o.id]!==false);
  const out=[];let lastF=null;
  for(const o of list){const c=cm(o.id);if(!c)continue;const d=await getChapter(o.id);const fid=o.folder?o.folder.id:null;
-  out.push({id:o.id,n:chNum(o.id)||'',title:c.title||'Sem título',html:clean(d.html||''),part:(x.scope!=='cur'&&fid&&fid!==lastF)?o.folder.title:null});lastF=fid}
+  out.push({id:o.id,n:chNum(o.id)||'',kick:chKick(c),title:c.title||'Sem título',html:clean(d.html||''),part:(x.scope!=='cur'&&fid&&fid!==lastF)?o.folder.title:null});lastF=fid}
  return out;
 }
 function partHTML(t){return `<div class="partpg"><div class="pk">✦</div><div class="pt">${esc(t)}</div></div>`}
@@ -736,14 +736,14 @@ ${root} .partpg{text-align:center;padding-top:30%}${root} .partpg .pk{color:#8b3
 ${root} .toc h2{text-align:center}${root} .toc p{text-indent:0;margin:.35em 0;text-align:left}
 `}
 function titleHTML(){const p=P();return `<div class="titlepage">${p.cover?`<img src="${esc(p.cover)}" alt="">`:''}<div class="t">${esc(p.title)}</div>${p.author?`<div class="a">${esc(p.author)}</div>`:''}${p.synopsis?`<p class="syn">${esc(p.synopsis)}</p>`:''}</div>`}
-function tocHTML(chs){return `<div class="toc"><h2>Sumário</h2>${chs.map(c=>(c.part?`<p style="margin-top:.9em"><b>${esc(c.part)}</b></p>`:'')+`<p>${P().type==='rpg'?'':c.n+'. '}${esc(c.title)}</p>`).join('')}${S.exp.codex&&P().codex.length?`<p>Apêndice — ${P().type==='rpg'?'Compêndio':'Wiki do mundo'}</p>`:''}</div>`}
+function tocHTML(chs){return `<div class="toc"><h2>Sumário</h2>${chs.map(c=>(c.part?`<p style="margin-top:.9em"><b>${esc(c.part)}</b></p>`:'')+`<p>${tocPre(c)}${esc(c.title)}</p>`).join('')}${S.exp.codex&&P().codex.length?`<p>Apêndice — ${P().type==='rpg'?'Compêndio':'Wiki do mundo'}</p>`:''}</div>`}
 function withDropcap(html){
  if(!P().settings.dropcap)return html;const d=document.createElement('div');d.innerHTML=html;const p=d.firstElementChild;if(!p||p.tagName!=='P')return html;
  const w=document.createTreeWalker(p,NodeFilter.SHOW_TEXT);let tn;while((tn=w.nextNode())&&!tn.textContent.trim());if(!tn)return html;
  const m=/^(\s*)([«"“'—–-]*\s?[\p{L}\p{N}])/u.exec(tn.textContent);if(!m)return html;
  const sp=document.createElement('span');sp.className='dc';sp.textContent=m[2];const rest=document.createTextNode(tn.textContent.slice(m[0].length));
  tn.replaceWith(sp,rest);p.style.textIndent='0';return d.innerHTML}
-function chapterHTML(c){return `<section class="chapter"><div class="kicker">${P().type==='rpg'||!c.n?'':'Capítulo '+c.n}</div><h1>${esc(c.title)}</h1>${withDropcap(c.html)}</section>`}
+function chapterHTML(c){return `<section class="chapter"><div class="kicker">${esc(kickTxt(c))}</div><h1>${esc(c.title)}</h1>${withDropcap(c.html)}</section>`}
 ACT.doExport=async()=>{
  const x=S.exp;await flushChapter();
  const chs=await gather();if(!chs.length){toast('Nenhum capítulo selecionado.','err');return}
@@ -825,7 +825,7 @@ async function exportDOCX(chs,name,b){
  if(x.toc&&chs.length>1){children.push(new D.Paragraph({children:[new D.TextRun('Sumário')],heading:D.HeadingLevel.HEADING_2,pageBreakBefore:true}));chs.forEach(c=>children.push(new D.Paragraph({children:[new D.TextRun((p.type==='rpg'?'':c.n+'. ')+c.title)]})))}
  for(let i=0;i<chs.length;i++){const c=chs[i];b.set(`Convertendo capítulo ${i+1}/${chs.length}…`);
   if(c.part)children.push(new D.Paragraph({children:[new D.TextRun({text:c.part,size:52,font:s.headFont,bold:true})],alignment:D.AlignmentType.CENTER,pageBreakBefore:true,spacing:{before:3000}}));
-  if(p.type!=='rpg')children.push(new D.Paragraph({children:[new D.TextRun({text:'CAPÍTULO '+c.n,size:18,color:'777777'})],alignment:D.AlignmentType.CENTER,pageBreakBefore:i>0||x.title||x.toc,spacing:{before:1200}}));
+  if(kickTxt(c))children.push(new D.Paragraph({children:[new D.TextRun({text:kickTxt(c).toUpperCase(),size:18,color:'777777'})],alignment:D.AlignmentType.CENTER,pageBreakBefore:i>0||x.title||x.toc,spacing:{before:1200}}));
   children.push(new D.Paragraph({children:[new D.TextRun(c.title)],heading:D.HeadingLevel.HEADING_1,pageBreakBefore:p.type==='rpg'&&(i>0||x.title||x.toc)}));
   children.push(...await blocks(c.html));}
  if(x.codex&&p.codex.length){children.push(new D.Paragraph({children:[new D.TextRun(p.type==='rpg'?'Compêndio':'Wiki do mundo')],heading:D.HeadingLevel.HEADING_1,pageBreakBefore:true}));children.push(...await blocks(codexHTML()))}
@@ -879,6 +879,6 @@ function htmlToMd(html){
  return blk(d).replace(/\n{3,}/g,'\n\n');
 }
 function buildMD(chs){const p=P(),x=S.exp;let md='';if(x.title){md+=`# ${p.title}\n\n`;if(p.author)md+=`*${p.author}*\n\n`;if(p.synopsis)md+=`> ${p.synopsis}\n\n`}
- chs.forEach(c=>{if(c.part)md+=`\n# ${c.part}\n\n`;md+=`\n## ${p.type==='rpg'?'':c.n+'. '}${c.title}\n\n`+htmlToMd(c.html)});if(x.codex&&p.codex.length)md+=`\n## ${p.type==='rpg'?'Compêndio':'Wiki do mundo'}\n\n`+htmlToMd(codexHTML());return md.trim()+'\n'}
+ chs.forEach(c=>{if(c.part)md+=`\n# ${c.part}\n\n`;md+=`\n## ${tocPre(c)}${c.title}\n\n`+htmlToMd(c.html)});if(x.codex&&p.codex.length)md+=`\n## ${p.type==='rpg'?'Compêndio':'Wiki do mundo'}\n\n`+htmlToMd(codexHTML());return md.trim()+'\n'}
 function buildTXT(chs){const p=P(),x=S.exp;const tx=h=>{const d=document.createElement('div');d.innerHTML=h.replace(/<hr[^>]*>/g,'<p>* * *</p>');$$('p,h1,h2,h3,h4,li,tr,blockquote',d).forEach(e=>e.append('\n\n'));return d.textContent.replace(/\n{3,}/g,'\n\n').trim()};
- let t='';if(x.title)t+=p.title.toUpperCase()+'\n'+(p.author?p.author+'\n':'')+'\n';chs.forEach(c=>{if(c.part)t+=`\n\n\n${c.part.toUpperCase()}\n${'#'.repeat(Math.min(60,c.part.length))}\n`;t+=`\n\n${p.type==='rpg'?'':'CAPÍTULO '+c.n+'\n'}${c.title}\n${'='.repeat(Math.min(60,c.title.length))}\n\n`+tx(c.html)});return t.trim()+'\n'}
+ let t='';if(x.title)t+=p.title.toUpperCase()+'\n'+(p.author?p.author+'\n':'')+'\n';chs.forEach(c=>{if(c.part)t+=`\n\n\n${c.part.toUpperCase()}\n${'#'.repeat(Math.min(60,c.part.length))}\n`;t+=`\n\n${kickTxt(c)?kickTxt(c).toUpperCase()+'\n':''}${c.title}\n${'='.repeat(Math.min(60,c.title.length))}\n\n`+tx(c.html)});return t.trim()+'\n'}

@@ -1040,3 +1040,11 @@ body.tv-show .tv-ctl{opacity:1;transform:none;pointer-events:auto}
 body.telao:not(.tv-show){cursor:none}
 .tv-wait{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;min-height:60vh;color:#e8dcc4;padding:24px}
 .tv-wait img{width:min(360px,70vw);opacity:.9}.tv-wait h2{font:600 30px var(--disp);margin:8px 0 0}.tv-wait p{color:#b9aecb;max-width:520px}
+/* v35 — rótulo do capítulo editável */
+.ch-kicker.kick-ed{cursor:text;border-radius:6px;padding:2px 8px;transition:background .15s}
+.ch-kicker.kick-ed:hover{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.ch-kicker[contenteditable=true]{outline:1px dashed var(--accent);background:var(--panel2);color:var(--ink)}
+.ch-kicker.kick-empty{opacity:.35}
+.kick-pop{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:6px auto 4px;max-width:520px}
+.kick-pop button{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:99px;padding:4px 10px;font-size:12.5px;cursor:pointer}
+.kick-pop button:hover{border-color:var(--accent)}.kick-pop .kp-auto{color:var(--accent)}

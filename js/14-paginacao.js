@@ -43,12 +43,12 @@ async function paginate(chs,o,onProg){const p=P(),s=p.settings,c=prCfg(p),px=c.p
  const partPg={};let appxPg=null;
  if(o.toc&&chs.length>1){newPage('toc');await place(Object.assign(document.createElement('h2'),{textContent:'Sumário'}));
   for(const ch of chs){if(ch.part){const e=document.createElement('p');e.className='tocl tocpart';e.dataset.tocp=ch.id;e.innerHTML=`<span class="tt">${esc(ch.part)}</span><span class="dots"></span><span class="pn">000</span>`;await place(e)}
-   const e=document.createElement('p');e.className='tocl';e.dataset.toc=ch.id;e.innerHTML=`<span class="tt">${p.type==='rpg'||!ch.n?'':ch.n+'. '}${esc(ch.title)}</span><span class="dots"></span><span class="pn">000</span>`;await place(e)}
+   const e=document.createElement('p');e.className='tocl';e.dataset.toc=ch.id;e.innerHTML=`<span class="tt">${tocPre(ch)}${esc(ch.title)}</span><span class="dots"></span><span class="pn">000</span>`;await place(e)}
   if(o.codex){const e=document.createElement('p');e.className='tocl';e.dataset.toca='1';e.innerHTML=`<span class="tt">Apêndice — ${p.type==='rpg'?'Compêndio':'Wiki do mundo'}</span><span class="dots"></span><span class="pn">000</span>`;await place(e)}}
  for(let i=0;i<chs.length;i++){const ch=chs[i];onProg&&onProg((i+.5)/(chs.length+(o.codex?1:0)));
   if(ch.part){if(c.recto&&(pages.length+1)%2===0)newPage('blank');full('part',partHTML(ch.part),'pp-wrap');partPg[ch.id]=pages.length}
   if(c.recto&&(pages.length+1)%2===0)newPage('blank');newPage('chap',{chap:ch});
-  const hd=document.createElement('div');hd.className='chead';hd.dataset.ch=ch.id;hd.innerHTML=`<div class="kicker">${p.type==='rpg'||!ch.n?'':'Capítulo '+ch.n}</div><h1>${esc(ch.title)}</h1>`;await place(hd);
+  const hd=document.createElement('div');hd.className='chead';hd.dataset.ch=ch.id;hd.innerHTML=`<div class="kicker">${esc(kickTxt(ch))}</div><h1>${esc(ch.title)}</h1>`;await place(hd);
   for(const el of frag(withDropcap(ch.html))){if(el.tagName==='HR'&&el.classList.contains('pgbreak')){if(!empty()){cur.keep=null;newPage('chap',{chap:ch})}continue}await place(el)}}
  if(o.codex){if(c.recto&&(pages.length+1)%2===0)newPage('blank');newPage('appx');appxPg=pages.length;await place(Object.assign(document.createElement('h1'),{textContent:p.type==='rpg'?'Compêndio':'Wiki do mundo'}));for(const el of frag(codexHTML()))await place(el)}
  syncFn();while(pages.length>1&&!pages[pages.length-1].c.firstChild){pages.pop().el.remove()}

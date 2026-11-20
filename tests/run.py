@@ -316,9 +316,29 @@ async def t_telao(b):
     check(await m.evaluate('T.seats.length') == 1, 'telão não ocupa vaga de jogador')
     check(await tv.evaluate("getComputedStyle(document.querySelector('.tbl-h')).display") == 'none', 'telão esconde os controles da mesa')
 
+async def t_rotulo(b):
+  async with Ctx(b) as c:
+    pg = await c.page('rotulo', init="window.INK_FB={};"); await pg.wait_for_selector('.home', timeout=20000)
+    await new_project(pg, 'book', 'Com Prólogo'); await type_in(pg, 'Era uma vez.', 600)
+    await pg.click('#kicker'); await pg.wait_for_selector('.kick-pop'); await pg.click('.kick-pop button:has-text("Prólogo")'); await pg.wait_for_timeout(400)
+    check(await pg.evaluate("$('#kicker').textContent") == 'Prólogo', 'rótulo trocado para Prólogo no editor')
+    await pg.evaluate('ACT.chAdd()'); await pg.wait_for_timeout(900)
+    st = await pg.evaluate("[$('#kicker').textContent,P().chapters[1].title,chNum(P().chapters[0].id)]")
+    check(st[0] == 'Capítulo 1' and st[1] == 'Capítulo 1' and st[2] is None, f'capítulo seguinte vira Capítulo 1 ({st})')
+    await pg.click('#kicker'); await pg.wait_for_selector('.kick-pop'); await pg.keyboard.press('Control+A'); await pg.keyboard.type('Parte da Tempestade'); await pg.keyboard.press('Enter'); await pg.wait_for_timeout(300)
+    check(await pg.evaluate("$('#kicker').textContent") == 'Parte da Tempestade', 'rótulo livre digitado')
+    await pg.click('#kicker'); await pg.wait_for_selector('.kick-pop'); await pg.click('.kp-auto'); await pg.wait_for_timeout(300)
+    check(await pg.evaluate("$('#kicker').textContent") == 'Capítulo 1', 'volta para número automático')
+    await pg.evaluate('flushChapter()')
+    out = await pg.evaluate("(async()=>{S.exp=S.exp||{};S.exp.scope='all';const chs=await gather();return [chs.map(chapterHTML).join(''),buildTXT(chs),tocHTML(chs)]})()")
+    check('>Prólogo<' in out[0] and '>Capítulo 1<' in out[0], 'exportação mostra Prólogo e Capítulo 1')
+    check('PRÓLOGO' in out[1] and 'CAPÍTULO 1' in out[1], 'TXT mostra os rótulos')
+    check('1. Capítulo 1' in out[2] and '>Era' not in out[2], 'sumário numera só os capítulos')
+    c.no_errors()
+
 TESTS = [('modo_local', t_modo_local), ('conta_nuvem', t_conta_nuvem), ('economia', t_economia), ('mesa_visitante', t_mesa_visitante),
          ('combate', t_combate), ('mapa_secreto', t_mapa_secreto), ('coautoria', t_coautoria), ('moderacao_conta', t_moderacao_conta),
-         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao)]
+         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao), ('rotulo', t_rotulo)]
 
 async def main():
   only = sys.argv[1:]; fails = []
