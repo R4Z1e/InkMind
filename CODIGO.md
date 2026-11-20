@@ -39,6 +39,7 @@ no Claude (versão artefato) ou no Firebase (versão do site, pelo `inkmind-fb.j
 | `js/28-zoom.js` | Zoom do mapa (editor e sessão): botões flutuantes, pinça no celular, Ctrl+roda no PC |
 | `js/29-telao.js` | Modo telão: janela/aparelho espectador (`?telao=<mesa>`) que mostra só o que os jogadores veem |
 | `js/30-rotulo.js` | Rótulo do capítulo editável (Prólogo, Epílogo, Interlúdio, texto livre ou sem rótulo); numeração automática pula esses capítulos |
+| `js/31-previa-celular.js` | Prévia de impressão no celular: ajustes recolhíveis, alça para mudar a altura, pinça com dois dedos na folha |
 | `js/lib/spell-worker.js` | Leitor dos dicionários (Web Worker), gerado de `tools/spell-worker-src.js` |
 | `dict/` | Dicionários baixáveis (`*.trie.gz`) e suas licenças (`dict/LEIA-ME.md`) |
 | `js/99-inicio.js` | Inicialização (sempre por último) |

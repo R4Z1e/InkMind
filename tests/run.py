@@ -336,9 +336,30 @@ async def t_rotulo(b):
     check('1. Capítulo 1' in out[2] and '>Era' not in out[2], 'sumário numera só os capítulos')
     c.no_errors()
 
+async def t_previa_celular(b):
+  async with Ctx(b) as c:
+    pg = await c.page('previa', init="window.INK_FB={};", vp={'width': 390, 'height': 844}); await pg.wait_for_selector('.home', timeout=20000)
+    await new_project(pg, 'book', 'Prévia'); await type_in(pg, 'Uma frase para a folha. ' * 30, 600)
+    await pg.evaluate("showView('print')"); await pg.wait_for_selector('#pvGrip'); await pg.wait_for_timeout(1500)
+    check(await pg.evaluate("$('.pv').classList.contains('pv-min') && $('.pv-side').offsetHeight < 70"), 'no celular os ajustes começam recolhidos')
+    await pg.click('#pvFold'); await pg.wait_for_timeout(300)
+    h1 = await pg.evaluate("$('.pv-side').offsetHeight"); check(h1 > 150, f'tocar em Ajustes abre o painel ({h1}px)')
+    g = await pg.locator('#pvGrip').bounding_box(); y = g['y'] + 10
+    await pg.mouse.move(195, y); await pg.mouse.down(); await pg.mouse.move(195, y + 160, steps=8); await pg.mouse.up(); await pg.wait_for_timeout(300)
+    h2 = await pg.evaluate("$('.pv-side').offsetHeight"); check(h2 > h1 + 100, f'arrastar a alça aumenta o painel ({h1} → {h2}px)')
+    z0 = await pg.evaluate("S.pvZoom||pvFit()")
+    await pg.evaluate("""(()=>{const sc=$('#pvScroll'),r=sc.getBoundingClientRect(),cy=r.top+200;
+      const T=(id,x)=>new Touch({identifier:id,target:sc,clientX:x,clientY:cy});
+      const ev=(type,ts)=>sc.dispatchEvent(new TouchEvent(type,{touches:ts,targetTouches:ts,changedTouches:ts,bubbles:true,cancelable:true}));
+      ev('touchstart',[T(1,150),T(2,250)]);ev('touchmove',[T(1,100),T(2,300)]);ev('touchend',[])})()""")
+    z1 = await pg.evaluate("S.pvZoom"); check(z1 and z1 > z0 * 1.8, f'pinça com dois dedos aumenta a folha ({z0:.2f} → {z1})')
+    await pg.reload(wait_until='domcontentloaded'); await pg.wait_for_selector('.home, #page', timeout=20000)
+    check(await pg.evaluate("JSON.parse(localStorage['ink.pvSide']).min===false"), 'tamanho escolhido fica guardado')
+    c.no_errors()
+
 TESTS = [('modo_local', t_modo_local), ('conta_nuvem', t_conta_nuvem), ('economia', t_economia), ('mesa_visitante', t_mesa_visitante),
          ('combate', t_combate), ('mapa_secreto', t_mapa_secreto), ('coautoria', t_coautoria), ('moderacao_conta', t_moderacao_conta),
-         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao), ('rotulo', t_rotulo)]
+         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao), ('rotulo', t_rotulo), ('previa_celular', t_previa_celular)]
 
 async def main():
   only = sys.argv[1:]; fails = []

@@ -1,7 +1,7 @@
 /* ============ v32: relatar problema / sugestão e registro automático de erros (fase de testes) ============
    Tudo vai para a coleção feedback/{id} do Firestore, que só a moderação lê (painel 🛡 Moderação → Relatos).
    Erros automáticos: no máximo 5 por sessão e 15 por dia neste aparelho, sem repetir a mesma mensagem. */
-const APP_V='v35';
+const APP_V='v36';
 const FB_LOG=[];   // últimas mensagens de aviso/erro, anexadas ao relato
 {const keep=(lv,a)=>{try{FB_LOG.push(new Date().toTimeString().slice(0,8)+' '+lv+' '+a.map(x=>x instanceof Error?(x.message||String(x)):typeof x==='object'?JSON.stringify(x):String(x)).join(' ').slice(0,300));if(FB_LOG.length>25)FB_LOG.shift()}catch{}};
  const w=console.warn.bind(console),e=console.error.bind(console);console.warn=(...a)=>{keep('aviso',a);w(...a)};console.error=(...a)=>{keep('erro',a);e(...a)}}

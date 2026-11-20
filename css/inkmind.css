@@ -1048,3 +1048,22 @@ body.telao:not(.tv-show){cursor:none}
 .kick-pop{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin:6px auto 4px;max-width:520px}
 .kick-pop button{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:99px;padding:4px 10px;font-size:12.5px;cursor:pointer}
 .kick-pop button:hover{border-color:var(--accent)}.kick-pop .kp-auto{color:var(--accent)}
+/* v36 — prévia de impressão no celular: ajustes recolhíveis e de altura ajustável */
+.pv-fold,.pv-grip{display:none}
+@media (max-width:760px){
+ .pv-fold{display:flex;align-items:center;gap:8px;width:100%;border:0;background:transparent;color:var(--ink);padding:0 0 10px;font:inherit;font-weight:600;text-align:left;cursor:pointer;min-height:36px}
+ .pv-fold .pv-sum{margin-left:auto;font-weight:400;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+ .pv-fold>span:first-child{white-space:nowrap}
+ .pv-fold .chev{transition:transform .2s;color:var(--accent)}
+ .pv-side>h3:first-of-type,.pv-side>h3+p{display:none}
+ .pv-side{padding:12px 14px}
+ .pv.pv-min .pv-side{max-height:none!important;overflow:hidden;padding:8px 14px}
+ .pv.pv-min .pv-side>*:not(.pv-fold){display:none!important}
+ .pv.pv-min .pv-fold{padding:0}
+ .pv.pv-min .pv-fold .chev{transform:rotate(-90deg)}
+ .pv-grip{display:flex;justify-content:center;align-items:center;height:20px;flex-shrink:0;background:var(--panel2);border-bottom:1px solid var(--line);touch-action:none;cursor:ns-resize}
+ .pv-grip span{width:46px;height:5px;border-radius:9px;background:var(--muted);opacity:.55}
+ .pv-bar{flex-wrap:nowrap;overflow-x:auto;padding:6px 10px;gap:6px;scrollbar-width:none}
+ .pv-bar::-webkit-scrollbar{display:none}
+ .pv-bar>*{flex-shrink:0}
+}
