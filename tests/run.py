@@ -357,9 +357,35 @@ async def t_previa_celular(b):
     check(await pg.evaluate("JSON.parse(localStorage['ink.pvSide']).min===false"), 'tamanho escolhido fica guardado')
     c.no_errors()
 
+async def t_modificacoes(b):
+  async with Ctx(b) as c:
+    a = await c.user('autor'); await new_project(a, 'book', 'Registro'); await type_in(a, 'O vento soprava forte na montanha.')
+    await a.evaluate('ACT.chAdd()'); await a.wait_for_timeout(800); await type_in(a, 'A vila dormia em silêncio.')
+    ch = await a.evaluate('S.P.chapters.map(c=>c.id)')
+    mine = await a.evaluate("modList().map(e=>[e.title,e.snip,e.by===modMe()])")
+    check(len(mine) == 2 and all(x[2] for x in mine) and 'vila dormia' in mine[0][1], f'mudanças do autor aparecem com trecho ({mine})')
+    check(await a.locator('#modBox .mod').count() == 2 and 'por você' in await a.evaluate("$('#modBox').innerText"), 'lista Últimas modificações embaixo de Rascunhos')
+    await a.evaluate(f"openChapter('{ch[0]}')"); await a.wait_for_timeout(500)
+    await a.click('[data-act=colShare]'); await a.wait_for_selector('.dlg-f .btn.primary'); await a.click('.dlg-f .btn.primary'); await a.wait_for_selector('.col-link', timeout=15000)
+    links = await a.evaluate("[...document.querySelectorAll('.col-link input')].map(i=>i.value)"); await a.click('.dlg-f .btn.primary')
+    co = await c.user('coautor', url=links[0].split('/')[-1]); await co.wait_for_selector('.dlg-f .btn.primary', timeout=10000); await co.click('.dlg-f .btn.primary'); await co.wait_for_selector('#page', timeout=15000); await co.wait_for_timeout(1200)
+    await co.evaluate(f"openChapter('{ch[1]}')"); await co.wait_for_timeout(1000)
+    await co.click('#page'); await co.keyboard.press('Control+Home'); await co.keyboard.type('Um dragão pousou no telhado. '); await co.wait_for_timeout(1600)
+    await co.evaluate('flushWrites()'); await a.wait_for_timeout(2500)
+    un = await a.evaluate("modUnread().map(e=>[e.title,e.snip,e.name])")
+    check(len(un) == 1 and 'dragão pousou' in un[0][1], f'autor vê a mudança do coautor com o trecho ({un})')
+    check(await a.locator('#modBox .mod.unread').count() == 1 and await a.locator('#modBox .mod-badge').count() == 1, 'mudança nova aparece destacada com selo')
+    check(await a.locator('#modToast').count() == 1, 'aviso aparece na tela do autor')
+    await a.click('#modToast .mt-go'); await a.wait_for_timeout(900)
+    check(await a.evaluate('S.cid') == ch[1], 'clicar no aviso abre o capítulo alterado')
+    check(await a.evaluate("!CSS.highlights||CSS.highlights.has('ink-mod')"), 'trecho alterado fica marcado')
+    check(await a.evaluate('modUnread().length') == 0 and await a.locator('#modBox .mod-badge').count() == 0, 'depois de ver, o selo some')
+    check(len(await a.evaluate(f"modList().filter(e=>e.cid==='{ch[0]}')")) == 1, 'a mudança antiga do autor continua na lista (as listas se somam)')
+    c.no_errors()
+
 TESTS = [('modo_local', t_modo_local), ('conta_nuvem', t_conta_nuvem), ('economia', t_economia), ('mesa_visitante', t_mesa_visitante),
          ('combate', t_combate), ('mapa_secreto', t_mapa_secreto), ('coautoria', t_coautoria), ('moderacao_conta', t_moderacao_conta),
-         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao), ('rotulo', t_rotulo), ('previa_celular', t_previa_celular)]
+         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao), ('rotulo', t_rotulo), ('previa_celular', t_previa_celular), ('modificacoes', t_modificacoes)]
 
 async def main():
   only = sys.argv[1:]; fails = []
