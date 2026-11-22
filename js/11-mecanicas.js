@@ -151,7 +151,7 @@ function processActs(){if(!isMaster()||!T.game)return;const done=new Set(T.game.
    else if(a.type==='end'){if(curId()===s.uid){logAdd(`⏭ ${s.name} encerrou o turno`);nextTurn()}}
    else if(a.type==='death'&&MOD('death'))deathResolve(s,a.v);
    else if(a.type==='loot'){const m=T.maps[a.mid],l=m&&(m.loot||[]).find(x=>x.id===a.lid);if(l){giveItems(s.uid,l.items,l.coins);mapPatch(m.id,{loot:(m.loot||[]).filter(x=>x.id!==l.id)});logAdd(`${l.ic||'💰'} ${s.name} pegou: ${lootTxt(l)}`)}}
-   else if(a.type==='shop'){const sh=cl(T.game.shop||{});const e=(sh.items||[]).find(x=>x.item===a.item);if(a.mode==='buy'&&e&&e.stock>0&&e.stock<999){e.stock--;gamePatch({shop:sh})}const it=itemById(a.item);logAdd(`🏪 ${s.name} ${a.mode==='buy'?'comprou':'vendeu'} ${it?it.name:'um item'} por ${a.price} moedas`)}
+   else if(a.type==='shop'){shopApplyAct(s,a)}
    else if(a.type==='lv'){logAdd(`⭐ ${s.name} escolheu: ${a.txt}`)}});
   Object.entries(s.ans||{}).forEach(([rid,an])=>{const key='ans:'+rid+':'+s.uid;if(done.has(key)||!an)return;done.add(key);ch=true;const rq=(T.game.reqs||[]).find(x=>x.id===rid);if(!rq)return;logAdd(`🎯 ${s.name} — ${reqLabel(rq)}: ${an.v}${rq.hide?'':(an.v>=rq.dc?' ✔ passou':' ✘ falhou')}`);renderReqRes()})});
  if(ch)gamePatch({done:[...done].slice(-200)})}
@@ -296,10 +296,10 @@ ACT.pDice=async()=>{const s=mySeat(),me=isMaster(),a=s&&actorRef('pc',S.uid),att
 /* barra de ações (nova) */
 function renderActBar(){const el=$('#actbar');if(!el||!T.game)return;const c=T.game.combat,on=c&&c.on,cur=curEntry(),s=mySeat(),me=isMaster();let h='';
  if(s){const a=actorRef('pc',S.uid),inC=on&&c.order.some(o=>o.id===S.uid),my=inC&&cur&&cur.id===S.uid,wait=inC&&!my,acted=my&&RULES().oneAction&&T.actedTk===c.tk,dn=isDown(a),dying=my&&MOD('death')&&a.cond.includes('Caído')&&!a.cond.includes('Estável')&&!a.cond.includes('Morto');
-  const dis=wait||acted||dn?'disabled':'',ln=lootNear(),sh=MOD('shop')&&T.game.shop&&T.game.shop.open,pend=MOD('levelup')&&+s.pend>0;
+  const dis=wait||acted||dn?'disabled':'',ln=lootNear(),sh=shopsOpen().length,pend=MOD('levelup')&&+s.pend>0;
   h+=`<div class="ab-grp">${inC?`<span class="ab-info ${my?'my':''}">${a.cond.includes('Morto')?'☠️ Morto':dying?'💀 Caído — faça o teste de morte':dn?'🩸 '+(a.cond.includes('Estável')?'Estável':'Caído'):my?(T.endSent===c.tk?'⏳ Encerrando…':'⭐ Sua vez!'):'⏳ Vez de '+esc(cur?cur.name:'—')}</span>`:''}
    ${dying?`<button class="btn ab primary" data-act="pDeath" ${T.deathTk===c.tk?'disabled':''}>💀<span>Teste de morte</span></button>`:`<button class="btn ab" data-act="pAct" data-k="atk" ${dis}>⚔️<span>Atacar</span></button><button class="btn ab" data-act="pAct" data-k="skill" ${dis}>✨<span>Habilidade</span></button><button class="btn ab" data-act="pAct" data-k="item" ${dis}>🧪<span>Item</span></button><button class="btn ab" data-act="pDice">🎲<span>Teste</span></button><button class="btn ab" data-act="pBag">🎒<span>Mochila</span></button>`}
-   ${ln&&!dn?`<button class="btn ab gold" data-act="pLoot">${esc(ln.ic||'💰')}<span>Pegar</span></button>`:''}${sh?`<button class="btn ab" data-act="pShop">🏪<span>${esc(T.game.shop.name||'Loja')}</span></button>`:''}${pend?`<button class="btn ab gold" data-act="pLevel">⭐<span>Melhorias (${+s.pend})</span></button>`:''}
+   ${ln&&!dn?`<button class="btn ab gold" data-act="pLoot">${esc(ln.ic||'💰')}<span>Pegar</span></button>`:''}${sh?`<button class="btn ab" data-act="pShop">🏪<span>${esc(sh>1?'Lojas':(shopsOpen()[0].name||'Loja'))}</span></button>`:''}${pend?`<button class="btn ab gold" data-act="pLevel">⭐<span>Melhorias (${+s.pend})</span></button>`:''}
    ${my&&!dying?`<button class="btn ab primary" data-act="pEnd" ${T.endSent===c.tk?'disabled':''}>⏭<span>Encerrar turno</span></button>`:''}
    ${my&&!dn&&RULES().moveLimit?`<span class="ab-info">👣 ${speedOf(a)}${acted?' · ação usada':''}</span>`:''}</div>`}
  if(me){const npc=on&&cur&&cur.kind==='npc'?actorRef('npc',cur.id):null,acted=npc&&RULES().oneAction&&T.actedTk===c.tk;
@@ -379,7 +379,7 @@ function buildAdventure(){if(!T.game.chars.some(c=>c.name==='Goblin'&&!c.clone))
 4) FIM: volte à vila, revele “A recompensa de Osvaldo”, conclua a missão no 📖 Diário e use 🏁 Fim do combate / ⭐ Dar XP (sugestão: 300 XP para o grupo).
 Gancho futuro: o amuleto brilha mais forte ao norte… quem é o “Mestre Verde”?`;
  const shop={open:false,name:'Mercado de Vale Raso',items:[['Poção de cura',50,5],['Poção de mana',50,3],['Adaga',2,999],['Arco curto',25,2],['Gibão de couro',10,2],['Escudo',10,2]].map(([n,p,s])=>({item:it(n),price:p,stock:s})).filter(x=>x.item)};
- gamePatch({chars,quests:[quest,...(T.game.quests||[])],prep:[...(T.game.prep||[]),...prep],gmNotes:(T.game.gmNotes?T.game.gmNotes+'\n\n':'')+notes,shop,activeMap:M1.id});
+ gamePatch({chars,quests:[quest,...(T.game.quests||[])],prep:[...(T.game.prep||[]),...prep],gmNotes:(T.game.gmNotes?T.game.gmNotes+'\n\n':'')+notes,shops:[...shopsOf(T.game),{id:uid(),icon:'🏪',keeper:'Osvaldo',desc:'',ratio:RSET().sellRatio,...shop}],shop:null,activeMap:M1.id});
  return{maps:3}}
 ACT.advBuild=async()=>{if(!await confirmDlg('Criar a aventura “O Porão do Moinho”? Serão adicionados 3 mapas ligados por portas, NPCs, inimigos, uma missão, revelações, uma loja e o roteiro nas Notas do mestre. O mapa da vila passa a ser o visível.','Criar aventura'))return;const b=busy('Montando a aventura…');try{buildAdventure();toast('Aventura criada! Leia o roteiro em 📖 Diário → Notas do mestre.')}catch(e){console.warn(e);toast('Não consegui criar a aventura.','err')}finally{b.done()}if(T.mtab==='maps')MR.maps();else renderTab()};
 /* regras: painel de módulos */

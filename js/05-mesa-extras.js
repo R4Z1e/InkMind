@@ -113,7 +113,7 @@ async function joinTable(o){
  const g=T.game,tpl=g.template,pgId=($('input[name=pg]:checked')||{}).value||'',pg=pgId?g.chars.find(c=>c.id===pgId):null;
  const picks={};tplFields(tpl).filter(f=>f.type==='select').forEach(f=>{const r=$(`input[name="jp_${f.id}"]:checked`);if(r)picks[f.id]=r.value});
  const built=pg?{values:cl(pg.values||{}),skills:[...(pg.skills||[])],inv:cl(pg.inv||[])}:buildValues(tpl,picks);
- const nm=$('#jName').value.trim()||(pg&&pg.name)||'Aventureiro';const entry={name:nm,look:pg&&pg.look?cl(pg.look):autoLook(built.values,nm),emoji:o.emoji,color:o.color,values:built.values,skills:built.skills,inv:built.inv,coins:0,cond:[],pos:null,rolls:[],notes:'',from:pgId||null,joined:Date.now()};
+ const nm=$('#jName').value.trim()||(pg&&pg.name)||'Aventureiro';const entry={name:nm,look:pg&&pg.look?cl(pg.look):autoLook(built.values,nm),emoji:o.emoji,color:o.color,values:built.values,skills:built.skills,inv:built.inv,coins:Math.max(0,+(T.game&&T.game.startCoins)||0),cond:[],pos:null,rolls:[],notes:'',from:pgId||null,joined:Date.now()};
  const b=busy('Entrando na mesa…');
  try{if(ACL())await aclJoin();const ref=S.db.doc('seats/'+S.uid),snap=await ref.get();
   if(snap.exists){const d=snap.data();await ref.update({gids:[...new Set([...(d.gids||[]),T.gid])],g:{[T.gid]:entry}})}else await ref.set({uid:S.uid,gids:[T.gid],g:{[T.gid]:entry}});

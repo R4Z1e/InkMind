@@ -383,9 +383,40 @@ async def t_modificacoes(b):
     check(len(await a.evaluate(f"modList().filter(e=>e.cid==='{ch[0]}')")) == 1, 'a mudança antiga do autor continua na lista (as listas se somam)')
     c.no_errors()
 
+async def t_lojas(b):
+  async with Ctx(b) as c:
+    m = await c.user('mestre'); await new_project(m, 'rpg', 'Mercado'); gid = await open_table(m)
+    await m.evaluate("gamePatch({items:[{id:'i1',name:'Poção de cura',icon:'🧪',type:'Consumível',value:'50 PO'},{id:'i2',name:'Espada longa',icon:'🗡️',type:'Arma',value:'15'}]})"); await m.wait_for_timeout(400)
+    await m.click('[data-act=tTab][data-t=shop]'); await m.wait_for_selector('[data-sh=new]')
+    await m.fill('#shStart', '100'); await m.dispatch_event('#shStart', 'change'); await m.fill('#shCoin', 'PO'); await m.dispatch_event('#shCoin', 'change')
+    await m.click('[data-sh=new]'); await m.wait_for_selector('.shop-tpl'); await m.click('.shop-tpl[data-v=botica]'); await m.wait_for_selector('.shop-ed')
+    sh = await m.evaluate("shopsOf().map(s=>[s.name,s.items.map(e=>[e.item,e.price])])")
+    check(sh == [['Botica', [['i1', 50]]]], f'loja Botica criada com a poção pelo tipo e preço do Valor ({sh})')
+    await m.fill('.shop-row[data-item=i1] [data-s]', '2'); await m.dispatch_event('.shop-row[data-item=i1] [data-s]', 'change'); await m.wait_for_timeout(200)
+    await m.click('.shop-ed .toggle'); await m.wait_for_timeout(500)
+    check(await m.evaluate("shopsOf()[0].open && shopsOf()[0].items[0].stock===2"), 'estoque 2 e loja aberta')
+    if os.environ.get('SHOTS'): await m.screenshot(path='/tmp/loja_m.png', full_page=True)
+    p = await c.user('jogador'); await join_table(p, gid)
+    check(await p.evaluate('mySeat().coins') == 100, 'personagem novo começa com 100 moedas')
+    await p.wait_for_selector('[data-act=tTab][data-t=shop]', timeout=8000); await p.click('[data-act=tTab][data-t=shop]'); await p.wait_for_selector('[data-buy=i1]')
+    check('100' in await p.evaluate("$('.shop-purse').innerText") and 'PO' in await p.evaluate("$('.shop-purse').innerText"), 'jogador vê a bolsa com o nome da moeda')
+    if os.environ.get('SHOTS'): await p.set_viewport_size({'width':390,'height':800}); await p.wait_for_timeout(400); await p.screenshot(path='/tmp/loja_p.png'); await p.set_viewport_size({'width':1280,'height':800})
+    await p.click('[data-buy=i1]'); await p.wait_for_timeout(1500)
+    st = await p.evaluate("[mySeat().coins,(mySeat().inv||[]).filter(e=>e.item==='i1').reduce((a,e)=>a+e.qty,0),shopsOf()[0].items[0].stock]")
+    check(st == [50, 1, 1], f'compra: tira 50 moedas, poção na mochila, estoque baixa para 1 ({st})')
+    await p.click('[data-buy=i1]'); await p.wait_for_timeout(1500)
+    check(await p.evaluate("$('[data-buy=i1]').disabled && /Esgotado/.test($('[data-buy=i1]').textContent)"), 'estoque acabou: Esgotado')
+    await p.click('[data-sht=sell]'); await p.wait_for_selector('[data-sell]'); await p.click('[data-sell] >> nth=0'); await p.wait_for_timeout(1200)
+    check(await p.evaluate('mySeat().coins') == 25, 'vender devolve metade do preço')
+    await m.wait_for_timeout(500)
+    check('Botica' in await m.evaluate("$('#tMain').innerText") and 'comprou Poção de cura' in await m.evaluate("$('#tMain').innerText"), 'mestre vê as compras na aba Lojas')
+    await m.click('.shop-ed .toggle'); await m.wait_for_timeout(1200)
+    check(await p.locator('[data-act=tTab][data-t=shop]').count() == 1 and 'Nenhuma loja aberta' in await p.evaluate("$('#tMain').innerText"), 'loja fechada some para o jogador')
+    c.no_errors()
+
 TESTS = [('modo_local', t_modo_local), ('conta_nuvem', t_conta_nuvem), ('economia', t_economia), ('mesa_visitante', t_mesa_visitante),
          ('combate', t_combate), ('mapa_secreto', t_mapa_secreto), ('coautoria', t_coautoria), ('moderacao_conta', t_moderacao_conta),
-         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao), ('rotulo', t_rotulo), ('previa_celular', t_previa_celular), ('modificacoes', t_modificacoes)]
+         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao), ('rotulo', t_rotulo), ('previa_celular', t_previa_celular), ('modificacoes', t_modificacoes), ('lojas', t_lojas)]
 
 async def main():
   only = sys.argv[1:]; fails = []

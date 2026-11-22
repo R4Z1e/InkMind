@@ -41,6 +41,7 @@ no Claude (versão artefato) ou no Firebase (versão do site, pelo `inkmind-fb.j
 | `js/30-rotulo.js` | Rótulo do capítulo editável (Prólogo, Epílogo, Interlúdio, texto livre ou sem rótulo); numeração automática pula esses capítulos |
 | `js/31-previa-celular.js` | Prévia de impressão no celular: ajustes recolhíveis, alça para mudar a altura, pinça com dois dedos na folha |
 | `js/32-modificacoes.js` | Últimas modificações (embaixo de Rascunhos): capítulo, trecho, data/hora e autor de cada mudança; selo e aviso para mudanças de coautores; clicar leva ao trecho |
+| `js/33-lojas.js` | Lojas da mesa de RPG: aba Mestre → Lojas (várias lojas, itens, preço, estoque, vendedor, quanto pagam aos jogadores, moedas dos personagens) e aba Loja do jogador |
 | `js/lib/spell-worker.js` | Leitor dos dicionários (Web Worker), gerado de `tools/spell-worker-src.js` |
 | `dict/` | Dicionários baixáveis (`*.trie.gz`) e suas licenças (`dict/LEIA-ME.md`) |
 | `js/99-inicio.js` | Inicialização (sempre por último) |
