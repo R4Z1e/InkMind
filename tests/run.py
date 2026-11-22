@@ -414,9 +414,34 @@ async def t_lojas(b):
     check(await p.locator('[data-act=tTab][data-t=shop]').count() == 1 and 'Nenhuma loja aberta' in await p.evaluate("$('#tMain').innerText"), 'loja fechada some para o jogador')
     c.no_errors()
 
+async def t_cyberpunk(b):
+  async with Ctx(b) as c:
+    m = await c.user('mestre'); await new_project(m, 'rpg', 'Neon'); gid = await open_table(m)
+    check(await m.evaluate("!availRaces().includes('ciborgue')"), 'mesa de fantasia não mostra ciborgue/androide')
+    await m.evaluate("T.mtab='camp';renderSubtabs();renderTab()"); await m.wait_for_selector('#cyGo')
+    await m.click('#cyGo'); await m.wait_for_timeout(1200)
+    st = await m.evaluate("""[tplFields(T.game.template).find(f=>f.label==='Classe').choices.map(c=>c.name).join(','),
+      T.game.items.some(i=>i.name==='Katana monomolecular'), T.game.chars.some(c=>c.name==='Ciberpsicopata'),
+      shopsOf().some(s=>s.name==='Mercado negro'), Object.values(T.maps).some(x=>x.name==='Distrito Neon'&&x.style==='cyber'), T.game.coinName, T.game.startCoins,
+      tplFields(T.game.template).find(f=>f.label==='Classe').choices.find(c=>c.name==='Netrunner').items.length>0]""")
+    check(st[0] == 'Solo,Netrunner,Techie,Medtech,Fixer,Nômade', f'ficha Cyberpunk com as classes ({st[0]})')
+    check(st[1] and st[2] and st[3] and st[4], f'armas, inimigos, Mercado negro e mapa Distrito Neon criados ({st[1:5]})')
+    check(st[5] == 'eb' and st[6] == 500 and st[7], 'moeda eb, 500 iniciais e classes equipadas')
+    check(await m.evaluate("availRaces().join(',')") == 'humano,ciborgue,androide', 'mesa cyberpunk oferece Humano, Ciborgue e Androide')
+    await m.evaluate("T.mtab='maps';T.edit=cl(Object.values(T.maps).find(x=>x.name==='Distrito Neon'));renderSubtabs();renderTab()"); await m.wait_for_selector('#mapC'); await m.wait_for_timeout(600)
+    check(await m.evaluate("$('.mtool[data-t=road]').title") == 'Asfalto', 'ferramentas com nomes cyberpunk (Asfalto, Prédio, Loja neon…)')
+    if os.environ.get('SHOTS'): await m.screenshot(path='/tmp/cy_map.png')
+    imgs = await m.evaluate("""[['ciborgue','tatico','visor','#00e5ff'],['androide','netrunner','fones','#ff2bd6'],['humano','jaqueta','oculos','#9dff00'],['ciborgue','corpo','mascara','#ff6a00']].map(([r,o,a,h],i)=>{const L=defaultLook(r,o,'p'+i);Object.assign(L,{acc:a,hairColor:h,marks:i===2?'circuito':'nenhuma',outfitColor:OUTFIT_COLORS[o][0],accent:OUTFIT_COLORS[o][1]});return lookAvatar(L,160)})""")
+    check(all(x.startswith('data:image/png') for x in imgs), 'retratos cyberpunk desenhados')
+    if os.environ.get('SHOTS'):
+      await m.evaluate("document.body.insertAdjacentHTML('beforeend','<div id=cyP style=\"position:fixed;inset:0;z-index:9999;background:#111;display:flex;gap:8px;padding:20px\"></div>')")
+      await m.evaluate("""[['ciborgue','tatico','visor','#00e5ff'],['androide','netrunner','fones','#ff2bd6'],['humano','jaqueta','oculos','#9dff00'],['ciborgue','corpo','mascara','#ff6a00'],['androide','jaqueta','implante','#8a2be2']].forEach(([r,o,a,h],i)=>{const L=defaultLook(r,o,'p'+i);Object.assign(L,{acc:a,hairColor:h,marks:i===2?'circuito':'nenhuma',outfitColor:OUTFIT_COLORS[o][0],accent:OUTFIT_COLORS[o][1],bg:'#160a26'});const cv=document.createElement('canvas');cv.width=200;cv.height=240;cv.style.cssText='width:200px;height:240px;flex:none';drawPortrait(cv.getContext('2d'),L,200,240);document.getElementById('cyP').appendChild(cv)})""")
+      await m.wait_for_timeout(300); await m.screenshot(path='/tmp/cy_look.png', clip={'x':0,'y':0,'width':1100,'height':290})
+    c.no_errors()
+
 TESTS = [('modo_local', t_modo_local), ('conta_nuvem', t_conta_nuvem), ('economia', t_economia), ('mesa_visitante', t_mesa_visitante),
          ('combate', t_combate), ('mapa_secreto', t_mapa_secreto), ('coautoria', t_coautoria), ('moderacao_conta', t_moderacao_conta),
-         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao), ('rotulo', t_rotulo), ('previa_celular', t_previa_celular), ('modificacoes', t_modificacoes), ('lojas', t_lojas)]
+         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao), ('rotulo', t_rotulo), ('previa_celular', t_previa_celular), ('modificacoes', t_modificacoes), ('lojas', t_lojas), ('cyberpunk', t_cyberpunk)]
 
 async def main():
   only = sys.argv[1:]; fails = []

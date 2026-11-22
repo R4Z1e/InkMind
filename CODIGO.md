@@ -42,6 +42,7 @@ no Claude (versão artefato) ou no Firebase (versão do site, pelo `inkmind-fb.j
 | `js/31-previa-celular.js` | Prévia de impressão no celular: ajustes recolhíveis, alça para mudar a altura, pinça com dois dedos na folha |
 | `js/32-modificacoes.js` | Últimas modificações (embaixo de Rascunhos): capítulo, trecho, data/hora e autor de cada mudança; selo e aviso para mudanças de coautores; clicar leva ao trecho |
 | `js/33-lojas.js` | Lojas da mesa de RPG: aba Mestre → Lojas (várias lojas, itens, preço, estoque, vendedor, quanto pagam aos jogadores, moedas dos personagens) e aba Loja do jogador |
+| `js/34-cyberpunk.js` | Tema cyberpunk: estilo de mapa Cyberpunk neon (drawCyber), início Ruas da cidade, ferramentas e objetos cyberpunk; espécies Ciborgue/Androide, roupas, marcas, acessórios e cores neon; ficha pronta Cyberpunk; conteúdo, loja Mercado negro e mapa de exemplo (Mestre → Campanha) |
 | `js/lib/spell-worker.js` | Leitor dos dicionários (Web Worker), gerado de `tools/spell-worker-src.js` |
 | `dict/` | Dicionários baixáveis (`*.trie.gz`) e suas licenças (`dict/LEIA-ME.md`) |
 | `js/99-inicio.js` | Inicialização (sempre por último) |
