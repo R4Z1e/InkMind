@@ -2,8 +2,8 @@
    - /_blob/<id>: imagens enviadas, do cache ou do Firestore (via a página aberta)
    - app instalável: index.html pela rede primeiro (cai no cache sem internet); arquivos do app no cache, atualizando em segundo plano */
 const CACHE = 'ink-blobs-v1';
-const APP = 'ink-app-v39';
-const SHELL = ['./', 'index.html', 'inkmind-fb.js', 'manifest.webmanifest', 'css/inkmind.css?v=39', 'js/01-base.js?v=39', 'js/02-estante.js?v=39', 'js/03-editor.js?v=39', 'js/04-mesa.js?v=39', 'js/05-mesa-extras.js?v=39', 'js/06-aparencia.js?v=39', 'js/07-mestre.js?v=39', 'js/08-tela-de-jogo.js?v=39', 'js/09-combate.js?v=39', 'js/10-aprender.js?v=39', 'js/11-mecanicas.js?v=39', 'js/12-backup.js?v=39', 'js/13-escrita-organizar.js?v=39', 'js/14-paginacao.js?v=39', 'js/15-menus.js?v=39', 'js/16-ferramentas-word.js?v=39', 'js/17-online.js?v=39', 'js/18-site-publico.js?v=39', 'js/19-mapa-secreto.js?v=39', 'js/20-painel-mover.js?v=39', 'js/21-coautoria.js?v=39', 'js/22-economia.js?v=39', 'js/23-celular-dados.js?v=39', 'js/24-livro-rpg.js?v=39', 'js/25-dicionario.js?v=39', 'js/26-revisor.js?v=39', 'js/lib/spell-worker.js?v=39', 'js/27-relatos.js?v=39', 'js/28-zoom.js?v=39', 'js/29-telao.js?v=39', 'js/30-rotulo.js?v=39', 'js/31-previa-celular.js?v=39', 'js/32-modificacoes.js?v=39', 'js/33-lojas.js?v=39', 'js/34-cyberpunk.js?v=39', 'js/99-inicio.js?v=39', 'img/icon-192.png', 'img/icon-512.png', 'img/wordmark.webp', 'img/logo.webp', 'img/banner.webp', 'img/mark.webp', 'img/wm-word.webp'];
+const APP = 'ink-app-v40';
+const SHELL = ['./', 'index.html', 'inkmind-fb.js', 'js/lib/purify.min.js', 'manifest.webmanifest', 'css/inkmind.css?v=40', 'js/01-base.js?v=40', 'js/02-estante.js?v=40', 'js/03-editor.js?v=40', 'js/04-mesa.js?v=40', 'js/05-mesa-extras.js?v=40', 'js/06-aparencia.js?v=40', 'js/07-mestre.js?v=40', 'js/08-tela-de-jogo.js?v=40', 'js/09-combate.js?v=40', 'js/10-aprender.js?v=40', 'js/11-mecanicas.js?v=40', 'js/12-backup.js?v=40', 'js/13-escrita-organizar.js?v=40', 'js/14-paginacao.js?v=40', 'js/15-menus.js?v=40', 'js/16-ferramentas-word.js?v=40', 'js/17-online.js?v=40', 'js/18-site-publico.js?v=40', 'js/19-mapa-secreto.js?v=40', 'js/20-painel-mover.js?v=40', 'js/21-coautoria.js?v=40', 'js/22-economia.js?v=40', 'js/23-celular-dados.js?v=40', 'js/24-livro-rpg.js?v=40', 'js/25-dicionario.js?v=40', 'js/26-revisor.js?v=40', 'js/lib/spell-worker.js?v=40', 'js/27-relatos.js?v=40', 'js/28-zoom.js?v=40', 'js/29-telao.js?v=40', 'js/30-rotulo.js?v=40', 'js/31-previa-celular.js?v=40', 'js/32-modificacoes.js?v=40', 'js/33-lojas.js?v=40', 'js/34-cyberpunk.js?v=40', 'js/35-offline.js?v=40', 'js/99-inicio.js?v=40', 'img/icon-192.png', 'img/icon-512.png', 'img/wordmark.webp', 'img/logo.webp', 'img/banner.webp', 'img/mark.webp', 'img/wm-word.webp'];
 
 self.addEventListener('install', e => {
   self.skipWaiting();
@@ -35,10 +35,27 @@ async function serveBlob(e, id) {
   try { await c.put(key, resp.clone()); } catch {}
   return resp;
 }
+// rede primeiro, mas sem ficar preso: sem internet (ou internet ruim por mais de 3,5 s) usa a cópia guardada
 async function networkFirst(req) {
   const c = await caches.open(APP);
-  try { const r = await fetch(req); if (r && r.ok) c.put(req, r.clone()).catch(() => {}); return r; }
-  catch { return (await c.match(req, { ignoreSearch: true })) || (await c.match('index.html')) || new Response('Sem conexão', { status: 503 }); }
+  const cached = () => c.match(req, { ignoreSearch: true }).then(h => h || (req.mode === 'navigate' ? c.match('index.html').then(i => i || c.match('./')) : null));
+  const net = fetch(req).then(r => { if (r && r.ok) c.put(req, r.clone()).catch(() => {}); return r; });
+  try {
+    const slow = new Promise(res => setTimeout(() => res('slow'), 3500));
+    const r = await Promise.race([net, slow]);
+    if (r !== 'slow') return r;
+    const h = await cached(); if (h) return h;
+    return await net;
+  } catch { return (await cached()) || new Response('Sem conexão', { status: 503 }); }
+}
+// bibliotecas e fontes de fora (Word, PDF, fontes…): guarda na primeira vez e usa a cópia depois
+const LIBS = 'ink-libs-v1';
+async function cacheFirstCross(e, req) {
+  const c = await caches.open(LIBS);
+  const hit = await c.match(req);
+  if (hit) return hit;
+  try { const r = await fetch(req); if (r && (r.ok || r.type === 'opaque')) c.put(req, r.clone()).catch(() => {}); return r; }
+  catch { return new Response('', { status: 504 }); }
 }
 async function staleWhileRevalidate(e, req) {
   const c = await caches.open(APP);
@@ -50,7 +67,10 @@ async function staleWhileRevalidate(e, req) {
 self.addEventListener('fetch', e => {
   const req = e.request; if (req.method !== 'GET') return;
   const u = new URL(req.url);
-  if (u.origin !== self.location.origin) return;
+  if (u.origin !== self.location.origin) {
+    if (/^(cdn\.jsdelivr\.net|cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|unpkg\.com)$/.test(u.hostname)) e.respondWith(cacheFirstCross(e, req));
+    return;
+  }
   const m = /\/_blob\/([A-Za-z0-9_-]+)$/.exec(u.pathname);
   if (m) { e.respondWith(serveBlob(e, m[1])); return; }
   if (req.mode === 'navigate' || /\/(index\.html)?$/.test(u.pathname)) { e.respondWith(networkFirst(req)); return; }

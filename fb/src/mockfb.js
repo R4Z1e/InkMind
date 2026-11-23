@@ -111,6 +111,9 @@ export const F = {
   query: (q, ...ws) => ({ ...q, wheres: [...q.wheres, ...ws] }),
   where: (f, op, v) => ({ f, op, v }),
   async getDoc(ref) { await 0; mockRule('get', ref.path); return snapOf(ref.path); },
+  async getDocFromCache(ref) { return F.getDoc(ref); },
+  async getDocsFromCache(q) { return F.getDocs(q); },
+  async waitForPendingWrites() { await 0; },
   async setDoc(ref, data, opts) { data = strip(data); validate(data); mockRule(read(ref.path) ? 'update' : 'create', ref.path, opts && opts.merge ? deepMerge(read(ref.path), data) : data, read(ref.path)); write(ref.path, opts && opts.merge ? deepMerge(read(ref.path), data) : clone(data)); },
   async updateDoc(ref, ...args) {
     const cur = read(ref.path); const before = clone(cur); if (!cur) throw fsErr('not-found', 'No document to update: ' + ref.path);

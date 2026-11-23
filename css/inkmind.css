@@ -1133,3 +1133,11 @@ body.telao:not(.tv-show){cursor:none}
 .shop-tpl:hover{border-color:var(--accent)}.shop-tpl span{font-size:28px}.shop-tpl small{color:var(--muted)}
 #tSub .shop-tabb{color:#f5b942}
 @media (max-width:560px){.shop-it{flex-wrap:wrap}.shop-buy{flex-direction:row;align-items:center;width:100%;justify-content:flex-end}}
+/* v40 — sem internet */
+.off-banner{position:fixed;left:12px;bottom:48px;z-index:320;max-width:min(360px,calc(100vw - 24px));background:#2a2112;color:#ffe2a8;border:1px solid #8a6a2a;border-radius:12px;padding:8px 36px 8px 12px;font-size:13px;line-height:1.4;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.off-banner b{color:#fff}.off-banner .ob-x{position:absolute;right:6px;top:6px;border:0;background:transparent;color:#ffe2a8;cursor:pointer;font-size:14px}
+.off-banner.min{padding:4px 10px;font-size:0;cursor:default}.off-banner.min::before{content:'📴 Sem internet';font-size:12px}.off-banner.min .ob-x{display:none}
+#status.off .d{background:#f5b942!important}#status.off{color:#f5b942}
+.off-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 auto 14px;max-width:760px;padding:10px 12px;border:1px solid color-mix(in srgb,#f5b942 50%,transparent);background:color-mix(in srgb,#f5b942 10%,transparent);border-radius:12px;font-size:13px}
+.off-bar span{flex:1;min-width:200px}
+@media (max-width:760px){.off-banner{bottom:76px;left:12px;right:12px;max-width:none}}

@@ -41,12 +41,17 @@ export function install(cfg, F0) {
   let useT = null;
   const bump = (k, n = 1) => { if (!n) return; use[k] += n; sess[k] += n; clearTimeout(useT); useT = setTimeout(() => { try { localStorage.setItem(USE_K, JSON.stringify(use)); } catch {} }, 2000); };
   const srvN = s => (s && s.metadata && (s.metadata.fromCache || s.metadata.hasPendingWrites)) ? 0 : 1;
+  /* sem internet: lê do cache do aparelho na hora (em vez de esperar a rede) e não fica preso esperando
+     a confirmação do servidor nas gravações — o Firestore guarda e envia sozinho quando a internet volta */
+  const OFF = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+  const NOSNAP = ref => ({ id: ref && ref.id, exists: () => false, data: () => undefined, metadata: { fromCache: true } });
+  const ack = p => { p.catch(e => console.warn('[inkmind] gravação', e && (e.code || e.message) || e)); return OFF() ? Promise.resolve() : Promise.race([p, new Promise(r => setTimeout(r, 8000))]); };
   const F = Object.assign({}, F0, {
-    getDoc: async (...a) => { const s = await F0.getDoc(...a); bump('r', srvN(s)); return s; },
-    getDocs: async (...a) => { const s = await F0.getDocs(...a); bump('r', srvN(s) ? Math.max(1, s.docs.length) : 0); return s; },
-    setDoc: (...a) => { bump('w'); return F0.setDoc(...a); },
-    updateDoc: (...a) => { bump('w'); return F0.updateDoc(...a); },
-    deleteDoc: (...a) => { bump('d'); return F0.deleteDoc(...a); },
+    getDoc: async (...a) => { if (OFF() && F0.getDocFromCache) { try { return await F0.getDocFromCache(...a); } catch { return NOSNAP(a[0]); } } const s = await F0.getDoc(...a); bump('r', srvN(s)); return s; },
+    getDocs: async (...a) => { if (OFF() && F0.getDocsFromCache) { try { return await F0.getDocsFromCache(...a); } catch {} } const s = await F0.getDocs(...a); bump('r', srvN(s) ? Math.max(1, s.docs.length) : 0); return s; },
+    setDoc: (...a) => { bump('w'); return ack(F0.setDoc(...a)); },
+    updateDoc: (...a) => { bump('w'); return ack(F0.updateDoc(...a)); },
+    deleteDoc: (...a) => { bump('d'); return ack(F0.deleteDoc(...a)); },
     onSnapshot: (t, cb, err) => F0.onSnapshot(t, s => { try { if (srvN(s)) { if (typeof s.docChanges === 'function') bump('r', Math.max(1, s.docChanges().length)); else bump('r', 1); } } catch {} cb(s); }, err),
   });
   const app = F.initializeApp(cfg);
@@ -328,8 +333,8 @@ ${up ? '<div class="ft"><a id="ilBack">Voltar sem criar conta</a><br><span>“J�
       state.user = u || null;
       if (u) {
         F.onAuthStateChanged(auth, x => { if (!x && state.user) location.reload(); });
-        try { await F.setDoc(F.doc(fs, 'profiles/' + u.uid), { name: nameOf(u), photo: u.photoURL || null, t: Date.now() }, { merge: true }); } catch (e) { console.warn('[inkmind] perfil', e); }
-        await startSW();
+        F.setDoc(F.doc(fs, 'profiles/' + u.uid), { name: nameOf(u), photo: u.photoURL || null, t: Date.now() }, { merge: true }).catch(e => console.warn('[inkmind] perfil', e));   // não espera: sem internet ficaria preso aqui
+        await Promise.race([startSW().catch(() => {}), new Promise(r => setTimeout(r, 3000))]);
       }
       return u;
     })();
@@ -350,6 +355,7 @@ ${up ? '<div class="ft"><a id="ilBack">Voltar sem criar conta</a><br><span>“J�
     get provider() { const u = state.user; return !u ? null : u.isAnonymous ? 'anonymous' : ((u.providerData && u.providerData[0] && u.providerData[0].providerId) || 'password'); },
     get emailVerified() { return !!(state.user && state.user.emailVerified); },
     deleteAccount, errMsg: msgOf,
+    async synced() { try { if (F0.waitForPendingWrites) await F0.waitForPendingWrites(fs); return true; } catch { return false; } },
     async logout() { try { await F.deleteDoc(F.doc(fs, 'presence/' + state.user.uid)); } catch {} try { sessionStorage.removeItem('ink-skip-login'); } catch {} await F.signOut(auth); location.reload(); },
     async login() { if (state.user && state.user.isAnonymous) { const u = await loginScreen({ upgrade: true }); if (u) location.reload(); return; } location.reload(); },
     async renameMe(name) { if (!state.user) return; await F.updateProfile(state.user, { displayName: name }); await F.setDoc(F.doc(fs, 'profiles/' + state.user.uid), { name }, { merge: true }); },

@@ -439,9 +439,77 @@ async def t_cyberpunk(b):
       await m.wait_for_timeout(300); await m.screenshot(path='/tmp/cy_look.png', clip={'x':0,'y':0,'width':1100,'height':290})
     c.no_errors()
 
+async def t_offline_abrir(b):
+  import subprocess
+  root = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); port = 8779
+  srv = subprocess.Popen([sys.executable, '-m', 'http.server', str(port), '--bind', '127.0.0.1'], cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+  ctx = await b.new_context(viewport={'width': 1200, 'height': 800}); errs = []
+  try:
+    await asyncio.sleep(1)
+    pg = await ctx.new_page(); pg.on('pageerror', lambda e: errs.append(str(e)))
+    await pg.add_init_script("window.INK_FB={};")
+    await pg.goto(f'http://localhost:{port}/index.html'); await pg.wait_for_selector('.home', timeout=20000)
+    await pg.evaluate("navigator.serviceWorker.ready.then(()=>1)")
+    n = 0
+    for _ in range(40):
+      n = await pg.evaluate("caches.keys().then(ks=>ks.find(k=>k.startsWith('ink-app-'))).then(k=>k?caches.open(k).then(c=>c.keys()).then(x=>x.length):0)")
+      if n > 40: break
+      await pg.wait_for_timeout(500)
+    check(n > 40, f'arquivos do app guardados no aparelho ({n})')
+    await pg.evaluate("localStorage.setItem('escritas:p_off1',JSON.stringify({id:'off1',kind:'project',type:'book',title:'Livro de teste',chapters:[],drafts:[],updatedAt:Date.now()}))")
+    srv.terminate(); srv.wait()
+    t0 = time.time(); await pg.reload(wait_until='domcontentloaded'); await pg.wait_for_selector('.home', timeout=15000)
+    check(True, f'sem servidor/internet o app abre do mesmo jeito ({time.time()-t0:.1f} s)')
+    check(await pg.evaluate("!!window.DOMPurify && /<b>/.test(sanitize('<b>ok</b><img src=x onerror=alert(1)>'))") if await pg.evaluate("typeof sanitize==='function'") else await pg.evaluate("!!window.DOMPurify"), 'limpeza de HTML (DOMPurify) funciona offline: a formatação do texto não se perde')
+    check(not errs, 'sem erros de JavaScript offline' + ('' if not errs else ': ' + ' | '.join(errs[:3])))
+  finally:
+    try: srv.terminate()
+    except Exception: pass
+    await ctx.close()
+
+async def t_offline_rascunhos(b):
+  async with Ctx(b) as c:
+    a = await c.user('offlinista'); await new_project(a, 'book', 'Diário'); await type_in(a, 'Texto escrito com internet.', 2500)
+    await a.evaluate('flushWrites&&flushWrites()'); await a.wait_for_timeout(800)
+    cid = await a.evaluate('S.cid')
+    await c.ctx.set_offline(True); await a.wait_for_timeout(300)
+    if os.environ.get('SHOTS'): await a.wait_for_timeout(300); await a.screenshot(path='/tmp/off1.png')
+    check(await a.locator('#offBanner').count() == 1 and 'Sem internet' in await a.evaluate("$('#status').innerText"), 'aviso de sem internet aparece')
+    await type_in(a, ' Frase escrita sem internet.', 1800); await a.evaluate('flushWrites()'); await a.wait_for_timeout(400)
+    j = await a.evaluate("Object.keys(offJ.load().e)")
+    cloud = await a.evaluate(f"_offGet('c_{cid}').then(d=>d&&d.html||'')")
+    check(f'c_{cid}' in j and 'sem internet' not in cloud, f'sem internet o texto fica no aparelho e não vai para o capítulo na nuvem ({j})')
+    await a.evaluate('ACT.chAdd()'); await a.wait_for_timeout(900); await type_in(a, 'Capítulo inteiro criado offline.', 1800); await a.evaluate('flushWrites()'); await a.wait_for_timeout(400)
+    newid = await a.evaluate('S.cid')
+    await a.evaluate(f"openChapter('{cid}')"); await a.wait_for_timeout(700)
+    check('sem internet' in await a.evaluate("$('#page').innerText"), 'ao voltar no capítulo, o texto offline continua na tela')
+    await c.ctx.set_offline(False); await a.wait_for_timeout(5000)
+    st = await a.evaluate(f"""[P().drafts.map(id=>P().chapters.find(c=>c.id===id).title), P().drafts.includes('{newid}'), offJ.count(), S.cid!=='{cid}', !!$('#offBar'), !!$('#offDone')]""")
+    check(any('(offline' in t for t in st[0]) and st[1], f'internet de volta: cópia offline e capítulo novo foram para Rascunhos ({st[0]})')
+    check(st[2] == 0 and st[3] and st[4] and st[5], f'diário limpo, rascunho aberto com a faixa e aviso na tela ({st[2:]})')
+    if os.environ.get('SHOTS'): await a.screenshot(path='/tmp/off2.png')
+    orig = await a.evaluate(f"_offGet('c_{cid}').then(d=>d&&d.html||'')")
+    check('com internet' in orig and 'sem internet' not in orig, 'o capítulo original não foi mexido')
+    await a.click('#offRep'); await a.wait_for_selector('.dlg-f .btn.primary'); await a.click('.dlg-f .btn.primary'); await a.wait_for_timeout(1500)
+    await a.evaluate('flushWrites&&flushWrites()'); await a.wait_for_timeout(800)
+    orig = await a.evaluate(f"_offGet('c_{cid}').then(d=>d&&d.html||'')")
+    check('sem internet' in orig and await a.evaluate(f"S.cid==='{cid}' && !P().chapters.some(c=>/\\(offline/.test(c.title))"), 'Substituir leva o texto offline para o capítulo e apaga o rascunho')
+    c.no_errors()
+
+async def t_offline_mesa(b):
+  async with Ctx(b) as c:
+    m = await c.user('mestreoff'); await new_project(m, 'rpg', 'Mesa off'); gid = await open_table(m)
+    await c.ctx.set_offline(True); await m.wait_for_timeout(300)
+    await m.evaluate("gamePatch({gmNotes:'Preparado sem internet'})"); await m.wait_for_timeout(300)
+    check(await m.evaluate('S.offGame===true'), 'mudança na mesa sem internet fica na fila')
+    await c.ctx.set_offline(False); await m.wait_for_timeout(2500)
+    txt = await m.evaluate("[...document.querySelectorAll('.toast,.toasts *')].map(e=>e.innerText).join(' | ')")
+    check(await m.evaluate('S.offGame===false') and 'sincronizada' in txt, f'internet de volta: mesa sincronizada ({txt[:120]})')
+    c.no_errors()
+
 TESTS = [('modo_local', t_modo_local), ('conta_nuvem', t_conta_nuvem), ('economia', t_economia), ('mesa_visitante', t_mesa_visitante),
          ('combate', t_combate), ('mapa_secreto', t_mapa_secreto), ('coautoria', t_coautoria), ('moderacao_conta', t_moderacao_conta),
-         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao), ('rotulo', t_rotulo), ('previa_celular', t_previa_celular), ('modificacoes', t_modificacoes), ('lojas', t_lojas), ('cyberpunk', t_cyberpunk)]
+         ('levar_para_o_site', t_levar_para_o_site), ('celular', t_celular), ('menus', t_menus), ('revisor', t_revisor), ('relatos', t_relatos), ('zoom', t_zoom), ('telao', t_telao), ('rotulo', t_rotulo), ('previa_celular', t_previa_celular), ('modificacoes', t_modificacoes), ('lojas', t_lojas), ('cyberpunk', t_cyberpunk), ('offline_abrir', t_offline_abrir), ('offline_rascunhos', t_offline_rascunhos), ('offline_mesa', t_offline_mesa)]
 
 async def main():
   only = sys.argv[1:]; fails = []
